@@ -1,0 +1,9 @@
+dist
+node_modules
+skirout
+skir-external
+e2e-tests/skirout
+e2e-tests/skir-external
+_build
+*.tsbuildinfo
+.DS_Store
