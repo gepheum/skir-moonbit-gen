@@ -64,13 +64,9 @@ class MoonbitSourceFileGenerator {
   }
 
   private getTypeName(record: RecordLocation): string {
-    const names = record.recordAncestors
-      .map((x) => x.name?.text)
-      .filter((x): x is string => Boolean(x));
-    const segments = (names.length ? names : [record.record.name.text]).map(
-      (part) => convertCase(part, "UpperCamel"),
-    );
-    return segments.join("_");
+    return record.recordAncestors
+      .map((x) => x.name.text)
+      .join("_");
   }
 }
 
