@@ -2,7 +2,6 @@ import {
   type CodeGenerator,
   type Module,
   type RecordLocation,
-  convertCase,
 } from "skir-internal";
 import { z } from "zod";
 
@@ -64,9 +63,7 @@ class MoonbitSourceFileGenerator {
   }
 
   private getTypeName(record: RecordLocation): string {
-    return record.recordAncestors
-      .map((x) => x.name.text)
-      .join("_");
+    return record.recordAncestors.map((x) => x.name.text).join("_");
   }
 }
 
