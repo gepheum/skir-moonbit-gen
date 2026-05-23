@@ -114,8 +114,8 @@ class MoonbitSourceFileGenerator {
 
     out.push(`enum ${typeName} {\n`);
     const usedNames = new Set<string>();
-    usedNames.add("UNKNOWN");
-    out.push("  UNKNOWN(@client.UnrecognizedVariant)\n");
+    usedNames.add("Unknown");
+    out.push("  Unknown(@client.UnrecognizedVariant)\n");
     for (const variant of variants) {
       const variantName = toEnumVariantName(variant.name.text, usedNames);
       usedNames.add(variantName);
