@@ -59,3 +59,10 @@ fn InputStream::read_int(self : InputStream) -> Result[(Int, InputStream), Strin
     None => Err("unexpected end of input")
   }
 }
+
+fn InputStream::peek_int(self : InputStream) -> Result[Int, String] {
+  match self.bytes.get(self.offset) {
+    Some(b) => Ok(b.to_int())
+    None => Err("unexpected end of input")
+  }
+}

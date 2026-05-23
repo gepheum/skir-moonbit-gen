@@ -1,6 +1,7 @@
 // TODO: array serializer
 // TODO: optional serializer
-// TODO: 
+// TODO: add default values...
+// TODO: make them comparable, renderable, etc.
 
 import {
   type CodeGenerator,

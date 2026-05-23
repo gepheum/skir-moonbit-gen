@@ -25,7 +25,7 @@ pub fn bool_serializer() -> Serializer[Bool] {
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
       match input.read_int() {
-        Ok((b, _tail)) => Ok(b != 0)
+        Ok((b, tail)) => Ok((b != 0, tail))
         Err(e) => Err(e)
       }
     },
@@ -180,15 +180,15 @@ pub fn string_serializer() -> Serializer[String] {
       match input.read_int() {
         Ok((wire, rest)) =>
           match wire {
-            0 => Ok("")
-            242 => Ok("")
+            0 => Ok(("", rest))
+            242 => Ok(("", rest))
             243 =>
               match decode_number_with_tail(rest) {
                 Ok((length, tail)) =>
                   match read_n_bytes(tail, length.to_int()) {
-                    Ok((bytes, _tail)) =>
+                    Ok((bytes, next)) =>
                       try {
-                        Ok(@utf8.decode(bytes[:]))
+                        Ok((@utf8.decode(bytes[:]), next))
                       } catch {
                         _ => Err("invalid UTF-8")
                       }
@@ -266,13 +266,13 @@ pub fn bytes_serializer() -> Serializer[Bytes] {
       match input.read_int() {
         Ok((wire, rest)) =>
           match wire {
-            0 => Ok(Bytes::default())
-            244 => Ok(Bytes::default())
+            0 => Ok((Bytes::default(), rest))
+            244 => Ok((Bytes::default(), rest))
             245 =>
               match decode_number_with_tail(rest) {
                 Ok((length, tail)) =>
                   match read_n_bytes(tail, length.to_int()) {
-                    Ok((bytes, _tail)) => Ok(bytes)
+                    Ok((bytes, next)) => Ok((bytes, next))
                     Err(e) => Err(e)
                   }
                 Err(e) => Err(e)
@@ -672,6 +672,15 @@ fn decode_number_as_double(input : InputStream) -> Result[Double, String] {
   }
 }
 
+fn decode_number_as_double_with_tail(
+  input : InputStream
+) -> Result[(Double, InputStream), String] {
+  match input.read_int() {
+    Ok((wire, rest)) => decode_number_as_double_body(wire, rest)
+    Err(e) => Err(e)
+  }
+}
+
 pub fn int32_serializer() -> Serializer[Int] {
   new_serializer({
     is_default: fn(input : Int) { input == 0 },
@@ -690,8 +699,8 @@ pub fn int32_serializer() -> Serializer[Int] {
       out.write_ints(encode_i32(input))
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      match decode_number(input) {
-        Ok(v) => Ok(v.to_int())
+      match decode_number_with_tail(input) {
+        Ok((v, tail)) => Ok((v.to_int(), tail))
         Err(e) => Err(e)
       }
     },
@@ -736,7 +745,7 @@ pub fn int64_serializer() -> Serializer[Int64] {
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      decode_number(input)
+      decode_number_with_tail(input)
     },
     type_descriptor: fn() {
       {
@@ -788,8 +797,8 @@ pub fn hash64_serializer() -> Serializer[UInt64] {
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      match decode_number(input) {
-        Ok(v) => Ok(v.reinterpret_as_uint64())
+      match decode_number_with_tail(input) {
+        Ok((v, tail)) => Ok((v.reinterpret_as_uint64(), tail))
         Err(e) => Err(e)
       }
     },
@@ -831,8 +840,8 @@ pub fn float32_serializer() -> Serializer[Float] {
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      match decode_number_as_double(input) {
-        Ok(v) => Ok(Float::from_double(v))
+      match decode_number_as_double_with_tail(input) {
+        Ok((v, tail)) => Ok((Float::from_double(v), tail))
         Err(e) => Err(e)
       }
     },
@@ -867,7 +876,7 @@ pub fn float64_serializer() -> Serializer[Double] {
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      decode_number_as_double(input)
+      decode_number_as_double_with_tail(input)
     },
     type_descriptor: fn() {
       {
@@ -1001,8 +1010,8 @@ pub fn timestamp_serializer() -> Serializer[Timestamp] {
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      match decode_number(input) {
-        Ok(ms) => Ok(timestamp_from_unix_millis(ms))
+      match decode_number_with_tail(input) {
+        Ok((ms, tail)) => Ok((timestamp_from_unix_millis(ms), tail))
         Err(e) => Err(e)
       }
     },
@@ -1013,6 +1022,183 @@ pub fn timestamp_serializer() -> Serializer[Timestamp] {
       }
     },
   })
+}
+
+pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
+  new_serializer({
+    is_default: fn(input : T?) {
+      match input {
+        None => true
+        Some(_) => false
+      }
+    },
+    to_dense_json: fn(input : T?, builder : StringBuilder) {
+      match input {
+        None => builder.write_string("null")
+        Some(v) => builder.write_string(other.to_dense_json(v))
+      }
+    },
+    to_readable_json: fn(input : T?) {
+      match input {
+        None => parse_json("null")
+        Some(v) => other.to_readable_json(v)
+      }
+    },
+    from_json: fn(json : Json, policy : UnrecognizedValues) {
+      match json {
+        Json::Null => Ok(None)
+        _ =>
+          match (other.adapter.from_json)(json, policy) {
+            Ok(v) => Ok(Some(v))
+            Err(e) => Err(e)
+          }
+      }
+    },
+    encode: fn(input : T?, out : OutputStream) {
+      match input {
+        None => out.write_int(255)
+        Some(v) => (other.adapter.encode)(v, out)
+      }
+    },
+    decode: fn(input : InputStream, policy : UnrecognizedValues) {
+      match input.peek_int() {
+        Ok(255) =>
+          match input.read_int() {
+            Ok((_wire, rest)) => Ok((None, rest))
+            Err(e) => Err(e)
+          }
+        Ok(_) =>
+          match (other.adapter.decode)(input, policy) {
+            Ok((v, tail)) => Ok((Some(v), tail))
+            Err(e) => Err(e)
+          }
+        Err(e) => Err(e)
+      }
+    },
+    type_descriptor: fn() {
+      let inner = (other.adapter.type_descriptor)()
+      {
+        root_type: TypeSignature::Optional(inner.root_type),
+        records: inner.records,
+      }
+    },
+  })
+}
+
+pub fn[T] array_serializer(
+  item_serializer : Serializer[T]
+) -> Serializer[@immut_array.T[T]] {
+  new_serializer({
+    is_default: fn(input : @immut_array.T[T]) { input.is_empty() },
+    to_dense_json: fn(input : @immut_array.T[T], builder : StringBuilder) {
+      builder.write_char('[')
+      let mut i = 0
+      for item in input.iter() {
+        if i > 0 {
+          builder.write_char(',')
+        }
+        builder.write_string(item_serializer.to_dense_json(item))
+        i = i + 1
+      }
+      builder.write_char(']')
+    },
+    to_readable_json: fn(input : @immut_array.T[T]) {
+      let builder = StringBuilder()
+      builder.write_char('[')
+      let mut i = 0
+      for item in input.iter() {
+        if i > 0 {
+          builder.write_char(',')
+        }
+        builder.write_string(item_serializer.to_readable_json(item).stringify())
+        i = i + 1
+      }
+      builder.write_char(']')
+      parse_json(builder.to_string())
+    },
+    from_json: fn(json : Json, policy : UnrecognizedValues) {
+      match json {
+        Json::Array(arr) => {
+          let mut out = @immut_array.T::new()
+          for item in arr {
+            match (item_serializer.adapter.from_json)(item, policy) {
+              Ok(v) => out = out.push(v)
+              Err(e) => return Err(e)
+            }
+          }
+          Ok(out)
+        }
+        _ => Ok(@immut_array.T::new())
+      }
+    },
+    encode: fn(input : @immut_array.T[T], out : OutputStream) {
+      let n = input.length()
+      let mut cur = out
+      if n <= 3 {
+        cur = cur.write_int(246 + n)
+      } else {
+        cur = cur.write_ints([250, ..encode_u32_le(n)])
+      }
+      for item in input.iter() {
+        cur = (item_serializer.adapter.encode)(item, cur)
+      }
+      cur
+    },
+    decode: fn(input : InputStream, policy : UnrecognizedValues) {
+      match input.read_int() {
+        Ok((wire, rest)) => {
+          if wire == 0 || wire == 246 {
+            return Ok((@immut_array.T::new(), rest))
+          }
+          let mut cur = rest
+          let n =
+            if wire == 250 {
+              match read_u32(cur) {
+                Ok((n64, next)) => {
+                  cur = next
+                  n64.to_int()
+                }
+                Err(e) => return Err(e)
+              }
+            } else if wire >= 247 && wire <= 249 {
+              wire - 246
+            } else {
+              return Err("expected array")
+            }
+          let mut out = @immut_array.T::new()
+          for _ in 0..<n {
+            match (item_serializer.adapter.decode)(cur, policy) {
+              Ok((item, next)) => {
+                out = out.push(item)
+                cur = next
+              }
+              Err(e) => return Err(e)
+            }
+          }
+          Ok((out, cur))
+        }
+        Err(e) => Err(e)
+      }
+    },
+    type_descriptor: fn() {
+      let item_td = (item_serializer.adapter.type_descriptor)()
+      {
+        root_type: TypeSignature::Array({
+          item_type: item_td.root_type,
+          key_extractor: "",
+        }),
+        records: item_td.records,
+      }
+    },
+  })
+}
+
+fn[T] immut_from_array(items : Array[T]) -> @immut_array.T[T] {
+  let mut out = @immut_array.T::new()
+  for item in items {
+    out = out.push(item)
+  }
+  out
 }
 
 fn expect_ok_bool(r : Result[Bool, String]) -> Bool {
@@ -1058,6 +1244,22 @@ fn expect_ok_double(r : Result[Double, String]) -> Double {
 }
 
 fn expect_ok_timestamp(r : Result[Timestamp, String]) -> Timestamp {
+  match r {
+    Ok(v) => v
+    Err(_) => panic()
+  }
+}
+
+fn expect_ok_optional_int(r : Result[Int?, String]) -> Int? {
+  match r {
+    Ok(v) => v
+    Err(_) => panic()
+  }
+}
+
+fn expect_ok_immut_int_array(
+  r : Result[@immut_array.T[Int], String]
+) -> @immut_array.T[Int] {
   match r {
     Ok(v) => v
     Err(_) => panic()
@@ -1319,5 +1521,69 @@ test "timestamp_binary_round_trip" {
     let decoded =
       expect_ok_timestamp(s.from_bytes(s.to_bytes(ts), UnrecognizedValues::Drop)).to_unix_millis()
     assert_eq(decoded, clamp_timestamp_millis(ms))
+  }
+}
+
+test "array_to_json_dense_nonempty" {
+  let s = array_serializer(int32_serializer())
+  assert_eq(s.to_dense_json(immut_from_array([1, 2, 3])), "[1,2,3]")
+}
+
+test "array_from_json_null_is_empty" {
+  let s = array_serializer(int32_serializer())
+  assert_eq(
+    expect_ok_immut_int_array(s.from_json("null", UnrecognizedValues::Drop)),
+    @immut_array.T::new(),
+  )
+}
+
+test "array_encode_empty_is_wire_246" {
+  let s = array_serializer(int32_serializer())
+  assert_eq(s.to_bytes(@immut_array.T::new()), [115, 107, 105, 114, 246])
+}
+
+test "array_binary_round_trip" {
+  let s = array_serializer(int32_serializer())
+  for v in [
+    @immut_array.T::new(),
+    immut_from_array([0]),
+    immut_from_array([1, 2, 3]),
+    immut_from_array([-1, 0, 1]),
+  ] {
+    assert_eq(
+      expect_ok_immut_int_array(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)),
+      v,
+    )
+  }
+}
+
+test "optional_to_json_none_is_null" {
+  assert_eq(optional_serializer(int32_serializer()).to_dense_json(None), "null")
+}
+
+test "optional_to_json_some_delegates" {
+  assert_eq(optional_serializer(int32_serializer()).to_dense_json(Some(42)), "42")
+}
+
+test "optional_from_json_value_is_some" {
+  assert_eq(
+    expect_ok_optional_int(
+      optional_serializer(int32_serializer()).from_json("7", UnrecognizedValues::Drop),
+    ),
+    Some(7),
+  )
+}
+
+test "optional_encode_none_is_wire_255" {
+  assert_eq(
+    optional_serializer(int32_serializer()).to_bytes(None),
+    [115, 107, 105, 114, 255],
+  )
+}
+
+test "optional_binary_round_trip" {
+  let s = optional_serializer(int32_serializer())
+  for v in [None, Some(0), Some(42), Some(-1)] {
+    assert_eq(expect_ok_optional_int(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
   }
 }

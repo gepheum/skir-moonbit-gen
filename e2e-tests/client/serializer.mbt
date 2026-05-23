@@ -9,7 +9,7 @@ struct TypeAdapter[T] {
   to_readable_json : (T) -> Json
   from_json : (Json, UnrecognizedValues) -> Result[T, String]
   encode : (T, OutputStream) -> OutputStream
-  decode : (InputStream, UnrecognizedValues) -> Result[T, String]
+  decode : (InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
   type_descriptor : () -> TypeDescriptor
 }
 
@@ -67,10 +67,13 @@ pub fn[T] Serializer::from_bytes(
 ) -> Result[T, String] {
   match bytes {
       [115, 107, 105, 114, ..payload] =>
-        (self.adapter.decode)(
+        match (self.adapter.decode)(
           InputStream::from_int_array(payload.iter().to_array()),
           policy,
-        )
+        ) {
+          Ok((value, _tail)) => Ok(value)
+          Err(e) => Err(e)
+        }
     _ => Err("invalid binary payload")
   }
 }
