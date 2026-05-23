@@ -339,6 +339,97 @@ fn parse_uint64_or_zero(s : String) -> UInt64 {
   }
 }
 
+fn decode_number_as_double_body(
+  wire : Int,
+  input : InputStream
+) -> Result[(Double, InputStream), String] {
+  match wire {
+    0..=231 => Ok((wire.to_double(), input))
+    232 =>
+      match read_u16(input) {
+        Ok((v, rest)) => Ok((v.to_double(), rest))
+        Err(e) => Err(e)
+      }
+    233 =>
+      match read_u32(input) {
+        Ok((v, rest)) => Ok((v.to_double(), rest))
+        Err(e) => Err(e)
+      }
+    234 =>
+      match read_u64(input) {
+        Ok((v, rest)) => Ok((v.to_double(), rest))
+        Err(e) => Err(e)
+      }
+    235 =>
+      match input_stream_read_int(input) {
+        Ok((b, rest)) => Ok(((b - 256).to_double(), rest))
+        Err(e) => Err(e)
+      }
+    236 =>
+      match read_u16(input) {
+        Ok((v, rest)) => Ok(((v - 65536).to_double(), rest))
+        Err(e) => Err(e)
+      }
+    237 =>
+      match read_i32(input) {
+        Ok((v, rest)) => Ok((v.to_double(), rest))
+        Err(e) => Err(e)
+      }
+    238 =>
+      match read_i64(input) {
+        Ok((v, rest)) => Ok((v.to_double(), rest))
+        Err(e) => Err(e)
+      }
+    239 =>
+      match read_i64(input) {
+        Ok((v, rest)) => Ok((v.to_double(), rest))
+        Err(e) => Err(e)
+      }
+    240 =>
+      match input_stream_read_int(input) {
+        Ok((b0, tail0)) =>
+          match input_stream_read_int(tail0) {
+            Ok((b1, tail1)) =>
+              match input_stream_read_int(tail1) {
+                Ok((b2, tail2)) =>
+                  match input_stream_read_int(tail2) {
+                    Ok((b3, tail3)) => {
+                      let bits =
+                        b0.reinterpret_as_uint() |
+                        (b1.reinterpret_as_uint() << 8) |
+                        (b2.reinterpret_as_uint() << 16) |
+                        (b3.reinterpret_as_uint() << 24)
+                      let f = Float::reinterpret_from_uint(bits)
+                      Ok((f.to_double(), tail3))
+                    }
+                    Err(e) => Err(e)
+                  }
+                Err(e) => Err(e)
+              }
+            Err(e) => Err(e)
+          }
+        Err(e) => Err(e)
+      }
+    241 =>
+      match read_i64(input) {
+        Ok((bits, rest)) => Ok((bits.reinterpret_as_double(), rest))
+        Err(e) => Err(e)
+      }
+    _ => Ok((0.0, input))
+  }
+}
+
+fn decode_number_as_double(input : InputStream) -> Result[Double, String] {
+  match input_stream_read_int(input) {
+    Ok((wire, rest)) =>
+      match decode_number_as_double_body(wire, rest) {
+        Ok((v, _tail)) => Ok(v)
+        Err(e) => Err(e)
+      }
+    Err(e) => Err(e)
+  }
+}
+
 pub fn int32_serializer() -> Serializer[Int] {
   new_serializer({
     is_default: fn(input : Int) { input == 0 },
@@ -463,6 +554,85 @@ pub fn hash64_serializer() -> Serializer[UInt64] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Hash64),
+        records: [],
+      }
+    },
+  })
+}
+
+pub fn float32_serializer() -> Serializer[Float] {
+  new_serializer({
+    is_default: fn(input : Float) { input == 0.0 },
+    to_dense_json: fn(input : Float, builder : StringBuilder) {
+      builder.write_string(input.to_string())
+    },
+    to_readable_json: fn(input : Float) { parse_json(input.to_string()) },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
+      match json {
+        Json::Number(n, ..) => Ok(Float::from_double(n))
+        Json::String(s) => Ok(Float::from_double(parse_double_or_zero(s)))
+        _ => Ok(Float::from_double(0.0))
+      }
+    },
+    encode: fn(input : Float, out : OutputStream) {
+      if input == 0.0 {
+        output_stream_write_int(out, 0)
+      } else {
+        let bits = input.reinterpret_as_int()
+        output_stream_write_ints(
+          out,
+          [
+            240,
+            bits & 0xFF,
+            (bits >> 8) & 0xFF,
+            (bits >> 16) & 0xFF,
+            (bits >> 24) & 0xFF,
+          ],
+        )
+      }
+    },
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
+      match decode_number_as_double(input) {
+        Ok(v) => Ok(Float::from_double(v))
+        Err(e) => Err(e)
+      }
+    },
+    type_descriptor: fn() {
+      {
+        root_type: TypeSignature::Primitive(PrimitiveType::Float32),
+        records: [],
+      }
+    },
+  })
+}
+
+pub fn float64_serializer() -> Serializer[Double] {
+  new_serializer({
+    is_default: fn(input : Double) { input == 0.0 },
+    to_dense_json: fn(input : Double, builder : StringBuilder) {
+      builder.write_string(input.to_string())
+    },
+    to_readable_json: fn(input : Double) { parse_json(input.to_string()) },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
+      match json {
+        Json::Number(n, ..) => Ok(n)
+        Json::String(s) => Ok(parse_double_or_zero(s))
+        _ => Ok(0.0)
+      }
+    },
+    encode: fn(input : Double, out : OutputStream) {
+      if input == 0.0 {
+        output_stream_write_int(out, 0)
+      } else {
+        output_stream_write_ints(out, [241, ..encode_i64_le(input.reinterpret_as_int64())])
+      }
+    },
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
+      decode_number_as_double(input)
+    },
+    type_descriptor: fn() {
+      {
+        root_type: TypeSignature::Primitive(PrimitiveType::Float64),
         records: [],
       }
     },
@@ -628,6 +798,20 @@ fn expect_ok_int64(r : Result[Int64, String]) -> Int64 {
 }
 
 fn expect_ok_uint64(r : Result[UInt64, String]) -> UInt64 {
+  match r {
+    Ok(v) => v
+    Err(_) => panic()
+  }
+}
+
+fn expect_ok_float(r : Result[Float, String]) -> Float {
+  match r {
+    Ok(v) => v
+    Err(_) => panic()
+  }
+}
+
+fn expect_ok_double(r : Result[Double, String]) -> Double {
   match r {
     Ok(v) => v
     Err(_) => panic()
@@ -816,6 +1000,56 @@ test "hash64_binary_round_trip" {
   for v in [0UL, 1UL, 231UL, 232UL, 65535UL, 65536UL, 4294967295UL, 4294967296UL] {
     assert_eq(expect_ok_uint64(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
   }
+}
+
+test "float32_to_json" {
+  assert_eq(float32_serializer().to_dense_json(Float::from_double(1.5)), "1.5")
+}
+
+test "float32_from_json_string" {
+  assert_eq(
+    expect_ok_float(float32_serializer().from_json("\"3.25\"", UnrecognizedValues::Drop)),
+    Float::from_double(3.25),
+  )
+}
+
+test "float32_binary_round_trip" {
+  let s = float32_serializer()
+  for v in [Float::from_double(0.0), Float::from_double(1.5), Float::from_double(-2.25)] {
+    assert_eq(expect_ok_float(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+  }
+}
+
+test "float32_binary_encoding_1_5" {
+  assert_eq(
+    float32_serializer().to_bytes(Float::from_double(1.5)),
+    [115, 107, 105, 114, 240, 0, 0, 192, 63],
+  )
+}
+
+test "float64_to_json" {
+  assert_eq(float64_serializer().to_dense_json(1.5), "1.5")
+}
+
+test "float64_from_json_string" {
+  assert_eq(
+    expect_ok_double(float64_serializer().from_json("\"3.25\"", UnrecognizedValues::Drop)),
+    3.25,
+  )
+}
+
+test "float64_binary_round_trip" {
+  let s = float64_serializer()
+  for v in [0.0, 1.5, -2.25, 123456789.125] {
+    assert_eq(expect_ok_double(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+  }
+}
+
+test "float64_binary_encoding_1_5" {
+  assert_eq(
+    float64_serializer().to_bytes(1.5),
+    [115, 107, 105, 114, 241, 0, 0, 0, 0, 0, 0, 248, 63],
+  )
 }
 
 test "timestamp_to_json_dense_epoch" {
