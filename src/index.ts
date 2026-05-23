@@ -1,3 +1,7 @@
+// TODO: array serializer
+// TODO: optional serializer
+// TODO: 
+
 import {
   type CodeGenerator,
   type Field,
@@ -97,11 +101,7 @@ class MoonbitSourceFileGenerator {
     out.push(`pub struct ${typeName} {\n`);
     for (const field of fields) {
       const fieldName = toStructFieldName(field.name.text);
-      let moonbitType = this.typeSpeller.getMoonbitType(field.type!);
-      // Encode hard recursion as nullable to avoid infinite-size structs.
-      if (field.isRecursive === "hard") {
-        moonbitType = `${moonbitType}?`;
-      }
+      const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
       out.push(`  ${fieldName} : ${moonbitType}\n`);
     }
     out.push("  _unrecognized : @client.UnrecognizedFields?\n");

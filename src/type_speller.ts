@@ -1,4 +1,9 @@
-import type { RecordKey, RecordLocation, ResolvedType } from "skir-internal";
+import type {
+  Field,
+  RecordKey,
+  RecordLocation,
+  ResolvedType,
+} from "skir-internal";
 import { getTypeName, modulePathToAlias } from "./naming.js";
 
 export class TypeSpeller {
@@ -49,5 +54,21 @@ export class TypeSpeller {
         }
       }
     }
+  }
+
+  getMoonbitFieldType(field: Field): string {
+    const type = this.getRequiredFieldType(field);
+    const moonbitType = this.getMoonbitType(type);
+    if (field.isRecursive === "hard") {
+      return `@client.Recursive[${moonbitType}]`;
+    }
+    return moonbitType;
+  }
+
+  private getRequiredFieldType(field: Field): ResolvedType {
+    if (!field.type) {
+      throw new Error("Expected field.type to be defined");
+    }
+    return field.type;
   }
 }

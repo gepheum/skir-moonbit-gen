@@ -10,6 +10,7 @@ pub type String = @runtime.NativeString
 pub type Bytes = @runtime.NativeBytes
 
 // Runtime aliases re-exported so generated code can keep a single @client alias.
+pub type Recursive[T] = @runtime.Recursive[T]
 pub type Timestamp = @runtime.Timestamp
 pub type UnrecognizedFields = @runtime.UnrecognizedFields
 pub type UnrecognizedVariant = @runtime.UnrecognizedVariant
