@@ -49,6 +49,259 @@ fn parse_json(code : String) -> Json {
   }
 }
 
+fn hex_digit(n : Int) -> Char {
+  match n {
+    0 => '0'
+    1 => '1'
+    2 => '2'
+    3 => '3'
+    4 => '4'
+    5 => '5'
+    6 => '6'
+    7 => '7'
+    8 => '8'
+    9 => '9'
+    10 => 'a'
+    11 => 'b'
+    12 => 'c'
+    13 => 'd'
+    14 => 'e'
+    _ => 'f'
+  }
+}
+
+fn append_json_string(builder : StringBuilder, s : String) -> Unit {
+  builder.write_char('"')
+  for ch in s.iter() {
+    match ch {
+      '"' => builder.write_string("\\\"")
+      '\\' => builder.write_string("\\\\")
+      '\b' => builder.write_string("\\b")
+      '\f' => builder.write_string("\\f")
+      '\n' => builder.write_string("\\n")
+      '\r' => builder.write_string("\\r")
+      '\t' => builder.write_string("\\t")
+      _ => {
+        let code = ch.to_int()
+        if code < 0x20 {
+          builder.write_string("\\u00")
+          builder.write_char(hex_digit((code >> 4) & 0xF))
+          builder.write_char(hex_digit(code & 0xF))
+        } else {
+          builder.write_char(ch)
+        }
+      }
+    }
+  }
+  builder.write_char('"')
+}
+
+fn json_quoted_string(s : String) -> String {
+  let builder = StringBuilder()
+  append_json_string(builder, s)
+  builder.to_string()
+}
+
+fn read_n_bytes(input : InputStream, length : Int) -> Result[(Bytes, InputStream), String] {
+  let mut cur = input
+  let out : Array[Byte] = []
+  for _ in 0..<length {
+    match input_stream_read_int(cur) {
+      Ok((b, next)) => {
+        out.push(b.to_byte())
+        cur = next
+      }
+      Err(e) => return Err(e)
+    }
+  }
+  Ok((Bytes::from_array(out), cur))
+}
+
+fn encode_length_prefixed_bytes(out : OutputStream, wire : Int, length : Int) -> OutputStream {
+  if length < 232 {
+    output_stream_write_ints(out, [wire, length])
+  } else if length < 65536 {
+    output_stream_write_ints(out, [wire, 232, length & 0xFF, (length >> 8) & 0xFF])
+  } else {
+    output_stream_write_ints(
+      out,
+      [
+        wire,
+        233,
+        length & 0xFF,
+        (length >> 8) & 0xFF,
+        (length >> 16) & 0xFF,
+        (length >> 24) & 0xFF,
+      ],
+    )
+  }
+}
+
+fn decode_number_with_tail(input : InputStream) -> Result[(Int64, InputStream), String] {
+  match input_stream_read_int(input) {
+    Ok((wire, rest)) => decode_number_body(wire, rest)
+    Err(e) => Err(e)
+  }
+}
+
+fn bytes_to_hex_string(bytes : Bytes) -> String {
+  let builder = StringBuilder()
+  for byte in bytes.to_array() {
+    let n = byte.to_int()
+    builder.write_char(hex_digit((n >> 4) & 0xF))
+    builder.write_char(hex_digit(n & 0xF))
+  }
+  builder.to_string()
+}
+
+fn output_stream_write_bytes(out : OutputStream, bytes : Bytes) -> OutputStream {
+  let mut cur = out
+  for byte in bytes.to_array() {
+    cur = output_stream_write_byte(cur, byte)
+  }
+  cur
+}
+
+pub fn string_serializer() -> Serializer[String] {
+  new_serializer({
+    is_default: fn(input : String) { input == "" },
+    to_dense_json: fn(input : String, builder : StringBuilder) {
+      append_json_string(builder, input)
+    },
+    to_readable_json: fn(input : String) {
+      parse_json(json_quoted_string(input))
+    },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
+      match json {
+        Json::String(s) => Ok(s)
+        Json::Number(n, ..) => if n == 0.0 { Ok("") } else { Err("expected string") }
+        _ => Err("expected string")
+      }
+    },
+    encode: fn(input : String, out : OutputStream) {
+      let bytes = @utf8.encode(input)
+      if bytes.is_empty() {
+        output_stream_write_int(out, 242)
+      } else {
+        let out = encode_length_prefixed_bytes(out, 243, bytes.length())
+        output_stream_write_bytes(out, bytes)
+      }
+    },
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
+      match input_stream_read_int(input) {
+        Ok((wire, rest)) =>
+          match wire {
+            0 => Ok("")
+            242 => Ok("")
+            243 =>
+              match decode_number_with_tail(rest) {
+                Ok((length, tail)) =>
+                  match read_n_bytes(tail, length.to_int()) {
+                    Ok((bytes, _tail)) =>
+                      try {
+                        Ok(@utf8.decode(bytes[:]))
+                      } catch {
+                        _ => Err("invalid UTF-8")
+                      }
+                    Err(e) => Err(e)
+                  }
+                Err(e) => Err(e)
+              }
+            _ => Err("expected string")
+          }
+        Err(e) => Err(e)
+      }
+    },
+    type_descriptor: fn() {
+      {
+        root_type: TypeSignature::Primitive(PrimitiveType::String),
+        records: [],
+      }
+    },
+  })
+}
+
+pub fn bytes_serializer() -> Serializer[Bytes] {
+  new_serializer({
+    is_default: fn(input : Bytes) { input.is_empty() },
+    to_dense_json: fn(input : Bytes, builder : StringBuilder) {
+      append_json_string(builder, @base64.encode(input))
+    },
+    to_readable_json: fn(input : Bytes) {
+      parse_json(json_quoted_string("hex:" + bytes_to_hex_string(input)))
+    },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
+      match json {
+        Json::String(s) =>
+          if s.has_prefix("hex:") {
+            let hex = s[4:]
+            if hex.length() == 0 {
+              Ok(Bytes::default())
+            } else if hex.length() % 2 != 0 {
+              Err("invalid hex bytes")
+            } else {
+              let mut cur = 0
+              let out : Array[Byte] = []
+              while cur < hex.length() {
+                let byte_text = hex[cur:cur + 2]
+                try {
+                  let value = @string.parse_uint(byte_text, base=16)
+                  out.push(value.to_byte())
+                } catch {
+                  _ => return Err("invalid hex bytes")
+                }
+                cur = cur + 2
+              }
+              Ok(Bytes::from_array(out))
+            }
+          } else {
+            try {
+              Ok(@base64.decode(s))
+            } catch {
+              _ => Err("invalid base64 bytes")
+            }
+          }
+        Json::Number(n, ..) => if n == 0.0 { Ok(Bytes::default()) } else { Err("expected bytes") }
+        _ => Err("expected bytes")
+      }
+    },
+    encode: fn(input : Bytes, out : OutputStream) {
+      if input.is_empty() {
+        output_stream_write_int(out, 244)
+      } else {
+        let out = encode_length_prefixed_bytes(out, 245, input.length())
+        output_stream_write_bytes(out, input)
+      }
+    },
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
+      match input_stream_read_int(input) {
+        Ok((wire, rest)) =>
+          match wire {
+            0 => Ok(Bytes::default())
+            244 => Ok(Bytes::default())
+            245 =>
+              match decode_number_with_tail(rest) {
+                Ok((length, tail)) =>
+                  match read_n_bytes(tail, length.to_int()) {
+                    Ok((bytes, _tail)) => Ok(bytes)
+                    Err(e) => Err(e)
+                  }
+                Err(e) => Err(e)
+              }
+            _ => Err("expected bytes")
+          }
+        Err(e) => Err(e)
+      }
+    },
+    type_descriptor: fn() {
+      {
+        root_type: TypeSignature::Primitive(PrimitiveType::Bytes),
+        records: [],
+      }
+    },
+  })
+}
+
 fn encode_u16_le(v : Int) -> Array[Int] {
   [v & 0xFF, (v >> 8) & 0xFF]
 }
