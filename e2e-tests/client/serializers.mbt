@@ -18,13 +18,13 @@ pub fn bool_serializer() -> Serializer[Bool] {
     },
     encode: fn(input : Bool, out : OutputStream) {
       if input {
-        output_stream_write_int(out, 1)
+        out.write_int(1)
       } else {
-        output_stream_write_int(out, 0)
+        out.write_int(0)
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      match input_stream_read_int(input) {
+      match input.read_int() {
         Ok((b, _tail)) => Ok(b != 0)
         Err(e) => Err(e)
       }
@@ -106,7 +106,7 @@ fn read_n_bytes(input : InputStream, length : Int) -> Result[(Bytes, InputStream
   let mut cur = input
   let out : Array[Byte] = []
   for _ in 0..<length {
-    match input_stream_read_int(cur) {
+    match cur.read_int() {
       Ok((b, next)) => {
         out.push(b.to_byte())
         cur = next
@@ -119,26 +119,23 @@ fn read_n_bytes(input : InputStream, length : Int) -> Result[(Bytes, InputStream
 
 fn encode_length_prefixed_bytes(out : OutputStream, wire : Int, length : Int) -> OutputStream {
   if length < 232 {
-    output_stream_write_ints(out, [wire, length])
+    out.write_ints([wire, length])
   } else if length < 65536 {
-    output_stream_write_ints(out, [wire, 232, length & 0xFF, (length >> 8) & 0xFF])
+    out.write_ints([wire, 232, length & 0xFF, (length >> 8) & 0xFF])
   } else {
-    output_stream_write_ints(
-      out,
-      [
-        wire,
-        233,
-        length & 0xFF,
-        (length >> 8) & 0xFF,
-        (length >> 16) & 0xFF,
-        (length >> 24) & 0xFF,
-      ],
-    )
+    out.write_ints([
+      wire,
+      233,
+      length & 0xFF,
+      (length >> 8) & 0xFF,
+      (length >> 16) & 0xFF,
+      (length >> 24) & 0xFF,
+    ])
   }
 }
 
 fn decode_number_with_tail(input : InputStream) -> Result[(Int64, InputStream), String] {
-  match input_stream_read_int(input) {
+  match input.read_int() {
     Ok((wire, rest)) => decode_number_body(wire, rest)
     Err(e) => Err(e)
   }
@@ -152,14 +149,6 @@ fn bytes_to_hex_string(bytes : Bytes) -> String {
     builder.write_char(hex_digit(n & 0xF))
   }
   builder.to_string()
-}
-
-fn output_stream_write_bytes(out : OutputStream, bytes : Bytes) -> OutputStream {
-  let mut cur = out
-  for byte in bytes.to_array() {
-    cur = output_stream_write_byte(cur, byte)
-  }
-  cur
 }
 
 pub fn string_serializer() -> Serializer[String] {
@@ -181,14 +170,14 @@ pub fn string_serializer() -> Serializer[String] {
     encode: fn(input : String, out : OutputStream) {
       let bytes = @utf8.encode(input)
       if bytes.is_empty() {
-        output_stream_write_int(out, 242)
+        out.write_int(242)
       } else {
         let out = encode_length_prefixed_bytes(out, 243, bytes.length())
-        output_stream_write_bytes(out, bytes)
+        out.write_bytes(bytes)
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      match input_stream_read_int(input) {
+      match input.read_int() {
         Ok((wire, rest)) =>
           match wire {
             0 => Ok("")
@@ -267,14 +256,14 @@ pub fn bytes_serializer() -> Serializer[Bytes] {
     },
     encode: fn(input : Bytes, out : OutputStream) {
       if input.is_empty() {
-        output_stream_write_int(out, 244)
+        out.write_int(244)
       } else {
         let out = encode_length_prefixed_bytes(out, 245, input.length())
-        output_stream_write_bytes(out, input)
+        out.write_bytes(input)
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
-      match input_stream_read_int(input) {
+      match input.read_int() {
         Ok((wire, rest)) =>
           match wire {
             0 => Ok(Bytes::default())
@@ -344,9 +333,9 @@ fn encode_i32(v : Int) -> Array[Int] {
 }
 
 fn read_u16(input : InputStream) -> Result[(Int, InputStream), String] {
-  match input_stream_read_int(input) {
+  match input.read_int() {
     Ok((b0, tail0)) =>
-      match input_stream_read_int(tail0) {
+      match tail0.read_int() {
         Ok((b1, tail1)) => Ok((b0 | (b1 << 8), tail1))
         Err(e) => Err(e)
       }
@@ -355,13 +344,13 @@ fn read_u16(input : InputStream) -> Result[(Int, InputStream), String] {
 }
 
 fn read_u32(input : InputStream) -> Result[(Int64, InputStream), String] {
-  match input_stream_read_int(input) {
+  match input.read_int() {
     Ok((b0, tail0)) =>
-      match input_stream_read_int(tail0) {
+      match tail0.read_int() {
         Ok((b1, tail1)) =>
-          match input_stream_read_int(tail1) {
+          match tail1.read_int() {
             Ok((b2, tail2)) =>
-              match input_stream_read_int(tail2) {
+              match tail2.read_int() {
                 Ok((b3, tail3)) => {
                   let v =
                     Int64::from_int(b0) |
@@ -394,21 +383,21 @@ fn read_i32(input : InputStream) -> Result[(Int, InputStream), String] {
 }
 
 fn read_i64(input : InputStream) -> Result[(Int64, InputStream), String] {
-  match input_stream_read_int(input) {
+  match input.read_int() {
     Ok((b0, tail0)) =>
-      match input_stream_read_int(tail0) {
+      match tail0.read_int() {
         Ok((b1, tail1)) =>
-          match input_stream_read_int(tail1) {
+          match tail1.read_int() {
             Ok((b2, tail2)) =>
-              match input_stream_read_int(tail2) {
+              match tail2.read_int() {
                 Ok((b3, tail3)) =>
-                  match input_stream_read_int(tail3) {
+                  match tail3.read_int() {
                     Ok((b4, tail4)) =>
-                      match input_stream_read_int(tail4) {
+                      match tail4.read_int() {
                         Ok((b5, tail5)) =>
-                          match input_stream_read_int(tail5) {
+                          match tail5.read_int() {
                             Ok((b6, tail6)) =>
-                              match input_stream_read_int(tail6) {
+                              match tail6.read_int() {
                                 Ok((b7, tail7)) => {
                                   let v =
                                     Int64::from_int(b0) |
@@ -440,21 +429,21 @@ fn read_i64(input : InputStream) -> Result[(Int64, InputStream), String] {
 }
 
 fn read_u64(input : InputStream) -> Result[(UInt64, InputStream), String] {
-  match input_stream_read_int(input) {
+  match input.read_int() {
     Ok((b0, tail0)) =>
-      match input_stream_read_int(tail0) {
+      match tail0.read_int() {
         Ok((b1, tail1)) =>
-          match input_stream_read_int(tail1) {
+          match tail1.read_int() {
             Ok((b2, tail2)) =>
-              match input_stream_read_int(tail2) {
+              match tail2.read_int() {
                 Ok((b3, tail3)) =>
-                  match input_stream_read_int(tail3) {
+                  match tail3.read_int() {
                     Ok((b4, tail4)) =>
-                      match input_stream_read_int(tail4) {
+                      match tail4.read_int() {
                         Ok((b5, tail5)) =>
-                          match input_stream_read_int(tail5) {
+                          match tail5.read_int() {
                             Ok((b6, tail6)) =>
-                              match input_stream_read_int(tail6) {
+                              match tail6.read_int() {
                                 Ok((b7, tail7)) => {
                                   let v =
                                     b0.to_uint64() |
@@ -504,7 +493,7 @@ fn decode_number_body(wire : Int, input : InputStream) -> Result[(Int64, InputSt
         Err(e) => Err(e)
       }
     235 =>
-      match input_stream_read_int(input) {
+      match input.read_int() {
         Ok((b, rest)) => Ok((Int64::from_int(b - 256), rest))
         Err(e) => Err(e)
       }
@@ -521,13 +510,13 @@ fn decode_number_body(wire : Int, input : InputStream) -> Result[(Int64, InputSt
     238 => read_i64(input)
     239 => read_i64(input)
     240 =>
-      match input_stream_read_int(input) {
+      match input.read_int() {
         Ok((b0, tail0)) =>
-          match input_stream_read_int(tail0) {
+          match tail0.read_int() {
             Ok((b1, tail1)) =>
-              match input_stream_read_int(tail1) {
+              match tail1.read_int() {
                 Ok((b2, tail2)) =>
-                  match input_stream_read_int(tail2) {
+                  match tail2.read_int() {
                     Ok((b3, tail3)) => {
                       let bits =
                         b0.reinterpret_as_uint() |
@@ -558,7 +547,7 @@ fn decode_number_body(wire : Int, input : InputStream) -> Result[(Int64, InputSt
 }
 
 fn decode_number(input : InputStream) -> Result[Int64, String] {
-  match input_stream_read_int(input) {
+  match input.read_int() {
     Ok((wire, rest)) =>
       match decode_number_body(wire, rest) {
         Ok((v, _tail)) => Ok(v)
@@ -614,7 +603,7 @@ fn decode_number_as_double_body(
         Err(e) => Err(e)
       }
     235 =>
-      match input_stream_read_int(input) {
+      match input.read_int() {
         Ok((b, rest)) => Ok(((b - 256).to_double(), rest))
         Err(e) => Err(e)
       }
@@ -639,13 +628,13 @@ fn decode_number_as_double_body(
         Err(e) => Err(e)
       }
     240 =>
-      match input_stream_read_int(input) {
+      match input.read_int() {
         Ok((b0, tail0)) =>
-          match input_stream_read_int(tail0) {
+          match tail0.read_int() {
             Ok((b1, tail1)) =>
-              match input_stream_read_int(tail1) {
+              match tail1.read_int() {
                 Ok((b2, tail2)) =>
-                  match input_stream_read_int(tail2) {
+                  match tail2.read_int() {
                     Ok((b3, tail3)) => {
                       let bits =
                         b0.reinterpret_as_uint() |
@@ -673,7 +662,7 @@ fn decode_number_as_double_body(
 }
 
 fn decode_number_as_double(input : InputStream) -> Result[Double, String] {
-  match input_stream_read_int(input) {
+  match input.read_int() {
     Ok((wire, rest)) =>
       match decode_number_as_double_body(wire, rest) {
         Ok((v, _tail)) => Ok(v)
@@ -698,7 +687,7 @@ pub fn int32_serializer() -> Serializer[Int] {
       }
     },
     encode: fn(input : Int, out : OutputStream) {
-      output_stream_write_ints(out, encode_i32(input))
+      out.write_ints(encode_i32(input))
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
       match decode_number(input) {
@@ -741,9 +730,9 @@ pub fn int64_serializer() -> Serializer[Int64] {
     },
     encode: fn(input : Int64, out : OutputStream) {
       if input >= Int64::from_int(-2147483648) && input <= Int64::from_int(2147483647) {
-        output_stream_write_ints(out, encode_i32(input.to_int()))
+        out.write_ints(encode_i32(input.to_int()))
       } else {
-        output_stream_write_ints(out, [238, ..encode_i64_le(input)])
+        out.write_ints([238, ..encode_i64_le(input)])
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
@@ -789,13 +778,13 @@ pub fn hash64_serializer() -> Serializer[UInt64] {
     },
     encode: fn(input : UInt64, out : OutputStream) {
       if input <= 231UL {
-        output_stream_write_ints(out, [input.to_int()])
+        out.write_ints([input.to_int()])
       } else if input <= 65535UL {
-        output_stream_write_ints(out, [232, ..encode_u16_le(input.to_int())])
+        out.write_ints([232, ..encode_u16_le(input.to_int())])
       } else if input <= 4294967295UL {
-        output_stream_write_ints(out, [233, ..encode_u32_le(input.to_int())])
+        out.write_ints([233, ..encode_u32_le(input.to_int())])
       } else {
-        output_stream_write_ints(out, [234, ..encode_u64_le(input)])
+        out.write_ints([234, ..encode_u64_le(input)])
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
@@ -829,19 +818,16 @@ pub fn float32_serializer() -> Serializer[Float] {
     },
     encode: fn(input : Float, out : OutputStream) {
       if input == 0.0 {
-        output_stream_write_int(out, 0)
+        out.write_int(0)
       } else {
         let bits = input.reinterpret_as_int()
-        output_stream_write_ints(
-          out,
-          [
-            240,
-            bits & 0xFF,
-            (bits >> 8) & 0xFF,
-            (bits >> 16) & 0xFF,
-            (bits >> 24) & 0xFF,
-          ],
-        )
+        out.write_ints([
+          240,
+          bits & 0xFF,
+          (bits >> 8) & 0xFF,
+          (bits >> 16) & 0xFF,
+          (bits >> 24) & 0xFF,
+        ])
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
@@ -875,9 +861,9 @@ pub fn float64_serializer() -> Serializer[Double] {
     },
     encode: fn(input : Double, out : OutputStream) {
       if input == 0.0 {
-        output_stream_write_int(out, 0)
+        out.write_int(0)
       } else {
-        output_stream_write_ints(out, [241, ..encode_i64_le(input.reinterpret_as_int64())])
+        out.write_ints([241, ..encode_i64_le(input.reinterpret_as_int64())])
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
@@ -1009,9 +995,9 @@ pub fn timestamp_serializer() -> Serializer[Timestamp] {
     encode: fn(input : Timestamp, out : OutputStream) {
       let ms = clamp_timestamp_millis(input.to_unix_millis())
       if ms == 0L {
-        output_stream_write_int(out, 0)
+        out.write_int(0)
       } else {
-        output_stream_write_ints(out, [239, ..encode_i64_le(ms)])
+        out.write_ints([239, ..encode_i64_le(ms)])
       }
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
