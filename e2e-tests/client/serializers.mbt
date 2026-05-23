@@ -1119,14 +1119,14 @@ pub fn[T] array_serializer(
     from_json: fn(json : Json, policy : UnrecognizedValues) {
       match json {
         Json::Array(arr) => {
-          let mut out = @immut_array.T::new()
+          let out : Array[T] = []
           for item in arr {
             match (item_serializer.adapter.from_json)(item, policy) {
-              Ok(v) => out = out.push(v)
+              Ok(v) => out.push(v)
               Err(e) => return Err(e)
             }
           }
-          Ok(out)
+          Ok(@immut_array.T::from_array(out))
         }
         _ => Ok(@immut_array.T::new())
       }
@@ -1165,17 +1165,17 @@ pub fn[T] array_serializer(
             } else {
               return Err("expected array")
             }
-          let mut out = @immut_array.T::new()
+            let out : Array[T] = []
           for _ in 0..<n {
             match (item_serializer.adapter.decode)(cur, policy) {
               Ok((item, next)) => {
-                out = out.push(item)
+                  out.push(item)
                 cur = next
               }
               Err(e) => return Err(e)
             }
           }
-          Ok((out, cur))
+            Ok((@immut_array.T::from_array(out), cur))
         }
         Err(e) => Err(e)
       }
@@ -1194,11 +1194,7 @@ pub fn[T] array_serializer(
 }
 
 fn[T] immut_from_array(items : Array[T]) -> @immut_array.T[T] {
-  let mut out = @immut_array.T::new()
-  for item in items {
-    out = out.push(item)
-  }
-  out
+  @immut_array.T::from_array(items)
 }
 
 fn expect_ok_bool(r : Result[Bool, String]) -> Bool {
