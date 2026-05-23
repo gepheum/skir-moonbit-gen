@@ -94,7 +94,7 @@ class MoonbitSourceFileGenerator {
     const fields = this.getPresentFields(record.record.fields);
     const typeName = this.getTypeName(record);
 
-    out.push(`struct ${typeName} {\n`);
+    out.push(`pub struct ${typeName} {\n`);
     for (const field of fields) {
       const fieldName = toStructFieldName(field.name.text);
       let moonbitType = this.typeSpeller.getMoonbitType(field.type!);
@@ -112,7 +112,7 @@ class MoonbitSourceFileGenerator {
     const variants = this.getPresentFields(record.record.fields);
     const typeName = this.getTypeName(record);
 
-    out.push(`enum ${typeName} {\n`);
+    out.push(`pub enum ${typeName} {\n`);
     const usedNames = new Set<string>();
     usedNames.add("Unknown");
     out.push("  Unknown(@client.UnrecognizedVariant)\n");
