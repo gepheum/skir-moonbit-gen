@@ -1,5 +1,5 @@
 pub type NativeBool = Bool
-pub type NativeArray[T] = Array[T]
+pub type NativeArray[T] = @immut_array.T[T]
 pub type NativeInt = Int
 pub type NativeInt64 = Int64
 pub type NativeUInt64 = UInt64
