@@ -1,13 +1,13 @@
 pub fn bool_serializer() -> Serializer[Bool] {
   new_serializer({
     is_default: fn(input : Bool) { !input },
-    to_json: fn(input : Bool, flavor : JsonFlavor) {
-      match flavor {
-        JsonFlavor::Dense => if input { "1" } else { "0" }
-        JsonFlavor::Readable => if input { "true" } else { "false" }
-      }
+    to_dense_json: fn(input : Bool, builder : StringBuilder) {
+      builder.write_string(if input { "1" } else { "0" })
     },
-    from_json: fn(json : Json, _keep_unrecognized_values : Bool) {
+    to_readable_json: fn(input : Bool) {
+      parse_json(if input { "true" } else { "false" })
+    },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
       match json {
         Json::True => Ok(true)
         Json::False => Ok(false)
@@ -23,7 +23,7 @@ pub fn bool_serializer() -> Serializer[Bool] {
         output_stream_write_int(out, 0)
       }
     },
-    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
       match input_stream_read_int(input) {
         Ok((b, _tail)) => Ok(b != 0)
         Err(e) => Err(e)
@@ -40,6 +40,14 @@ pub fn bool_serializer() -> Serializer[Bool] {
 
 let max_safe_int64_json : Int64 = 9007199254740991L
 let max_safe_hash64_json : UInt64 = 9007199254740991UL
+
+fn parse_json(code : String) -> Json {
+  try {
+    @json.parse(code)
+  } catch {
+    _ => panic()
+  }
+}
 
 fn encode_u16_le(v : Int) -> Array[Int] {
   [v & 0xFF, (v >> 8) & 0xFF]
@@ -82,28 +90,44 @@ fn encode_i32(v : Int) -> Array[Int] {
   }
 }
 
-fn read_u16(input : Array[Int]) -> Result[(Int, Array[Int]), String] {
-  match input {
-    [b0, b1, ..rest] => Ok((b0 | (b1 << 8), rest.iter().to_array()))
-    _ => Err("unexpected end of input")
+fn read_u16(input : InputStream) -> Result[(Int, InputStream), String] {
+  match input_stream_read_int(input) {
+    Ok((b0, tail0)) =>
+      match input_stream_read_int(tail0) {
+        Ok((b1, tail1)) => Ok((b0 | (b1 << 8), tail1))
+        Err(e) => Err(e)
+      }
+    Err(e) => Err(e)
   }
 }
 
-fn read_u32(input : Array[Int]) -> Result[(Int64, Array[Int]), String] {
-  match input {
-    [b0, b1, b2, b3, ..rest] => {
-      let v =
-        Int64::from_int(b0) |
-        (Int64::from_int(b1) << 8) |
-        (Int64::from_int(b2) << 16) |
-        (Int64::from_int(b3) << 24)
-      Ok((v, rest.iter().to_array()))
-    }
-    _ => Err("unexpected end of input")
+fn read_u32(input : InputStream) -> Result[(Int64, InputStream), String] {
+  match input_stream_read_int(input) {
+    Ok((b0, tail0)) =>
+      match input_stream_read_int(tail0) {
+        Ok((b1, tail1)) =>
+          match input_stream_read_int(tail1) {
+            Ok((b2, tail2)) =>
+              match input_stream_read_int(tail2) {
+                Ok((b3, tail3)) => {
+                  let v =
+                    Int64::from_int(b0) |
+                    (Int64::from_int(b1) << 8) |
+                    (Int64::from_int(b2) << 16) |
+                    (Int64::from_int(b3) << 24)
+                  Ok((v, tail3))
+                }
+                Err(e) => Err(e)
+              }
+            Err(e) => Err(e)
+          }
+        Err(e) => Err(e)
+      }
+    Err(e) => Err(e)
   }
 }
 
-fn read_i32(input : Array[Int]) -> Result[(Int, Array[Int]), String] {
+fn read_i32(input : InputStream) -> Result[(Int, InputStream), String] {
   match read_u32(input) {
     Ok((u, rest)) => {
       if u >= 2147483648L {
@@ -116,43 +140,99 @@ fn read_i32(input : Array[Int]) -> Result[(Int, Array[Int]), String] {
   }
 }
 
-fn read_i64(input : Array[Int]) -> Result[(Int64, Array[Int]), String] {
-  match input {
-    [b0, b1, b2, b3, b4, b5, b6, b7, ..rest] => {
-      let v =
-        Int64::from_int(b0) |
-        (Int64::from_int(b1) << 8) |
-        (Int64::from_int(b2) << 16) |
-        (Int64::from_int(b3) << 24) |
-        (Int64::from_int(b4) << 32) |
-        (Int64::from_int(b5) << 40) |
-        (Int64::from_int(b6) << 48) |
-        (Int64::from_int(b7) << 56)
-      Ok((v, rest.iter().to_array()))
-    }
-    _ => Err("unexpected end of input")
+fn read_i64(input : InputStream) -> Result[(Int64, InputStream), String] {
+  match input_stream_read_int(input) {
+    Ok((b0, tail0)) =>
+      match input_stream_read_int(tail0) {
+        Ok((b1, tail1)) =>
+          match input_stream_read_int(tail1) {
+            Ok((b2, tail2)) =>
+              match input_stream_read_int(tail2) {
+                Ok((b3, tail3)) =>
+                  match input_stream_read_int(tail3) {
+                    Ok((b4, tail4)) =>
+                      match input_stream_read_int(tail4) {
+                        Ok((b5, tail5)) =>
+                          match input_stream_read_int(tail5) {
+                            Ok((b6, tail6)) =>
+                              match input_stream_read_int(tail6) {
+                                Ok((b7, tail7)) => {
+                                  let v =
+                                    Int64::from_int(b0) |
+                                    (Int64::from_int(b1) << 8) |
+                                    (Int64::from_int(b2) << 16) |
+                                    (Int64::from_int(b3) << 24) |
+                                    (Int64::from_int(b4) << 32) |
+                                    (Int64::from_int(b5) << 40) |
+                                    (Int64::from_int(b6) << 48) |
+                                    (Int64::from_int(b7) << 56)
+                                  Ok((v, tail7))
+                                }
+                                Err(e) => Err(e)
+                              }
+                            Err(e) => Err(e)
+                          }
+                        Err(e) => Err(e)
+                      }
+                    Err(e) => Err(e)
+                  }
+                Err(e) => Err(e)
+              }
+            Err(e) => Err(e)
+          }
+        Err(e) => Err(e)
+      }
+    Err(e) => Err(e)
   }
 }
 
-fn read_u64(input : Array[Int]) -> Result[(UInt64, Array[Int]), String] {
-  match input {
-    [b0, b1, b2, b3, b4, b5, b6, b7, ..rest] => {
-      let v =
-        b0.to_uint64() |
-        (b1.to_uint64() << 8) |
-        (b2.to_uint64() << 16) |
-        (b3.to_uint64() << 24) |
-        (b4.to_uint64() << 32) |
-        (b5.to_uint64() << 40) |
-        (b6.to_uint64() << 48) |
-        (b7.to_uint64() << 56)
-      Ok((v, rest.iter().to_array()))
-    }
-    _ => Err("unexpected end of input")
+fn read_u64(input : InputStream) -> Result[(UInt64, InputStream), String] {
+  match input_stream_read_int(input) {
+    Ok((b0, tail0)) =>
+      match input_stream_read_int(tail0) {
+        Ok((b1, tail1)) =>
+          match input_stream_read_int(tail1) {
+            Ok((b2, tail2)) =>
+              match input_stream_read_int(tail2) {
+                Ok((b3, tail3)) =>
+                  match input_stream_read_int(tail3) {
+                    Ok((b4, tail4)) =>
+                      match input_stream_read_int(tail4) {
+                        Ok((b5, tail5)) =>
+                          match input_stream_read_int(tail5) {
+                            Ok((b6, tail6)) =>
+                              match input_stream_read_int(tail6) {
+                                Ok((b7, tail7)) => {
+                                  let v =
+                                    b0.to_uint64() |
+                                    (b1.to_uint64() << 8) |
+                                    (b2.to_uint64() << 16) |
+                                    (b3.to_uint64() << 24) |
+                                    (b4.to_uint64() << 32) |
+                                    (b5.to_uint64() << 40) |
+                                    (b6.to_uint64() << 48) |
+                                    (b7.to_uint64() << 56)
+                                  Ok((v, tail7))
+                                }
+                                Err(e) => Err(e)
+                              }
+                            Err(e) => Err(e)
+                          }
+                        Err(e) => Err(e)
+                      }
+                    Err(e) => Err(e)
+                  }
+                Err(e) => Err(e)
+              }
+            Err(e) => Err(e)
+          }
+        Err(e) => Err(e)
+      }
+    Err(e) => Err(e)
   }
 }
 
-fn decode_number_body(wire : Int, input : Array[Int]) -> Result[(Int64, Array[Int]), String] {
+fn decode_number_body(wire : Int, input : InputStream) -> Result[(Int64, InputStream), String] {
   match wire {
     0..=231 => Ok((Int64::from_int(wire), input))
     232 =>
@@ -171,9 +251,9 @@ fn decode_number_body(wire : Int, input : Array[Int]) -> Result[(Int64, Array[In
         Err(e) => Err(e)
       }
     235 =>
-      match input {
-        [b, ..rest] => Ok((Int64::from_int(b - 256), rest.iter().to_array()))
-        _ => Err("unexpected end of input")
+      match input_stream_read_int(input) {
+        Ok((b, rest)) => Ok((Int64::from_int(b - 256), rest))
+        Err(e) => Err(e)
       }
     236 =>
       match read_u16(input) {
@@ -188,17 +268,29 @@ fn decode_number_body(wire : Int, input : Array[Int]) -> Result[(Int64, Array[In
     238 => read_i64(input)
     239 => read_i64(input)
     240 =>
-      match input {
-        [b0, b1, b2, b3, ..rest] => {
-          let bits =
-            b0.reinterpret_as_uint() |
-            (b1.reinterpret_as_uint() << 8) |
-            (b2.reinterpret_as_uint() << 16) |
-            (b3.reinterpret_as_uint() << 24)
-          let f = Float::reinterpret_from_uint(bits)
-          Ok((Int64::from_int(f.trunc().to_int()), rest.iter().to_array()))
-        }
-        _ => Err("unexpected end of input")
+      match input_stream_read_int(input) {
+        Ok((b0, tail0)) =>
+          match input_stream_read_int(tail0) {
+            Ok((b1, tail1)) =>
+              match input_stream_read_int(tail1) {
+                Ok((b2, tail2)) =>
+                  match input_stream_read_int(tail2) {
+                    Ok((b3, tail3)) => {
+                      let bits =
+                        b0.reinterpret_as_uint() |
+                        (b1.reinterpret_as_uint() << 8) |
+                        (b2.reinterpret_as_uint() << 16) |
+                        (b3.reinterpret_as_uint() << 24)
+                      let f = Float::reinterpret_from_uint(bits)
+                      Ok((Int64::from_int(f.trunc().to_int()), tail3))
+                    }
+                    Err(e) => Err(e)
+                  }
+                Err(e) => Err(e)
+              }
+            Err(e) => Err(e)
+          }
+        Err(e) => Err(e)
       }
     241 =>
       match read_i64(input) {
@@ -212,14 +304,14 @@ fn decode_number_body(wire : Int, input : Array[Int]) -> Result[(Int64, Array[In
   }
 }
 
-fn decode_number(input : Array[Int]) -> Result[Int64, String] {
-  match input {
-    [wire, ..rest] =>
-      match decode_number_body(wire, rest.iter().to_array()) {
+fn decode_number(input : InputStream) -> Result[Int64, String] {
+  match input_stream_read_int(input) {
+    Ok((wire, rest)) =>
+      match decode_number_body(wire, rest) {
         Ok((v, _tail)) => Ok(v)
         Err(e) => Err(e)
       }
-    _ => Err("unexpected end of input")
+    Err(e) => Err(e)
   }
 }
 
@@ -250,8 +342,11 @@ fn parse_uint64_or_zero(s : String) -> UInt64 {
 pub fn int32_serializer() -> Serializer[Int] {
   new_serializer({
     is_default: fn(input : Int) { input == 0 },
-    to_json: fn(input : Int, _flavor : JsonFlavor) { input.to_string() },
-    from_json: fn(json : Json, _keep_unrecognized_values : Bool) {
+    to_dense_json: fn(input : Int, builder : StringBuilder) {
+      builder.write_string(input.to_string())
+    },
+    to_readable_json: fn(input : Int) { parse_json(input.to_string()) },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
       match json {
         Json::Number(n, ..) => Ok(n.to_int())
         Json::String(s) => Ok(parse_double_or_zero(s).to_int())
@@ -261,8 +356,8 @@ pub fn int32_serializer() -> Serializer[Int] {
     encode: fn(input : Int, out : OutputStream) {
       output_stream_write_ints(out, encode_i32(input))
     },
-    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
-      match decode_number(input_stream_remaining_int_array(input)) {
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
+      match decode_number(input) {
         Ok(v) => Ok(v.to_int())
         Err(e) => Err(e)
       }
@@ -279,14 +374,21 @@ pub fn int32_serializer() -> Serializer[Int] {
 pub fn int64_serializer() -> Serializer[Int64] {
   new_serializer({
     is_default: fn(input : Int64) { input == 0L },
-    to_json: fn(input : Int64, _flavor : JsonFlavor) {
+    to_dense_json: fn(input : Int64, builder : StringBuilder) {
       if input >= -max_safe_int64_json && input <= max_safe_int64_json {
-        input.to_string()
+        builder.write_string(input.to_string())
       } else {
-        "\"" + input.to_string() + "\""
+        builder.write_string("\"" + input.to_string() + "\"")
       }
     },
-    from_json: fn(json : Json, _keep_unrecognized_values : Bool) {
+    to_readable_json: fn(input : Int64) {
+      if input >= -max_safe_int64_json && input <= max_safe_int64_json {
+        parse_json(input.to_string())
+      } else {
+        parse_json("\"" + input.to_string() + "\"")
+      }
+    },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
       match json {
         Json::Number(n, ..) => Ok(n.round().to_int64())
         Json::String(s) => Ok(parse_int64_or_zero(s))
@@ -300,8 +402,8 @@ pub fn int64_serializer() -> Serializer[Int64] {
         output_stream_write_ints(out, [238, ..encode_i64_le(input)])
       }
     },
-    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
-      decode_number(input_stream_remaining_int_array(input))
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
+      decode_number(input)
     },
     type_descriptor: fn() {
       {
@@ -315,14 +417,21 @@ pub fn int64_serializer() -> Serializer[Int64] {
 pub fn hash64_serializer() -> Serializer[UInt64] {
   new_serializer({
     is_default: fn(input : UInt64) { input == 0UL },
-    to_json: fn(input : UInt64, _flavor : JsonFlavor) {
+    to_dense_json: fn(input : UInt64, builder : StringBuilder) {
       if input <= max_safe_hash64_json {
-        input.to_string()
+        builder.write_string(input.to_string())
       } else {
-        "\"" + input.to_string() + "\""
+        builder.write_string("\"" + input.to_string() + "\"")
       }
     },
-    from_json: fn(json : Json, _keep_unrecognized_values : Bool) {
+    to_readable_json: fn(input : UInt64) {
+      if input <= max_safe_hash64_json {
+        parse_json(input.to_string())
+      } else {
+        parse_json("\"" + input.to_string() + "\"")
+      }
+    },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
       match json {
         Json::Number(n, ..) =>
           if n < 0.0 {
@@ -345,8 +454,8 @@ pub fn hash64_serializer() -> Serializer[UInt64] {
         output_stream_write_ints(out, [234, ..encode_u64_le(input)])
       }
     },
-    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
-      match decode_number(input_stream_remaining_int_array(input)) {
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
+      match decode_number(input) {
         Ok(v) => Ok(v.reinterpret_as_uint64())
         Err(e) => Err(e)
       }
@@ -457,19 +566,21 @@ fn timestamp_json_to_millis(json : Json) -> Int64 {
 pub fn timestamp_serializer() -> Serializer[Timestamp] {
   new_serializer({
     is_default: fn(input : Timestamp) { input.to_unix_millis() == 0L },
-    to_json: fn(input : Timestamp, flavor : JsonFlavor) {
+    to_dense_json: fn(input : Timestamp, builder : StringBuilder) {
       let ms = clamp_timestamp_millis(input.to_unix_millis())
-      match flavor {
-        JsonFlavor::Dense => ms.to_string()
-        JsonFlavor::Readable =>
-          "{\n  \"unix_millis\": " +
-          ms.to_string() +
-          ",\n  \"formatted\": \"" +
-          millis_to_iso8601(ms) +
-          "\"\n}"
-      }
+      builder.write_string(ms.to_string())
     },
-    from_json: fn(json : Json, _keep_unrecognized_values : Bool) {
+    to_readable_json: fn(input : Timestamp) {
+      let ms = clamp_timestamp_millis(input.to_unix_millis())
+      parse_json(
+        "{\n  \"unix_millis\": " +
+        ms.to_string() +
+        ",\n  \"formatted\": \"" +
+        millis_to_iso8601(ms) +
+        "\"\n}",
+      )
+    },
+    from_json: fn(json : Json, _policy : UnrecognizedValues) {
       Ok(timestamp_from_unix_millis(timestamp_json_to_millis(json)))
     },
     encode: fn(input : Timestamp, out : OutputStream) {
@@ -480,8 +591,8 @@ pub fn timestamp_serializer() -> Serializer[Timestamp] {
         output_stream_write_ints(out, [239, ..encode_i64_le(ms)])
       }
     },
-    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
-      match decode_number(input_stream_remaining_int_array(input)) {
+    decode: fn(input : InputStream, _policy : UnrecognizedValues) {
+      match decode_number(input) {
         Ok(ms) => Ok(timestamp_from_unix_millis(ms))
         Err(e) => Err(e)
       }
@@ -537,19 +648,19 @@ fn[T : Eq] assert_eq(lhs : T, rhs : T) -> Unit {
 }
 
 test "to_json_dense_true" {
-  assert_eq(bool_serializer().to_json(true, JsonFlavor::Dense), "1")
+  assert_eq(bool_serializer().to_dense_json(true), "1")
 }
 
 test "to_json_dense_false" {
-  assert_eq(bool_serializer().to_json(false, JsonFlavor::Dense), "0")
+  assert_eq(bool_serializer().to_dense_json(false), "0")
 }
 
 test "to_json_readable_true" {
-  assert_eq(bool_serializer().to_json(true, JsonFlavor::Readable), "true")
+  assert_eq(bool_serializer().to_readable_json(true), parse_json("true"))
 }
 
 test "to_json_readable_false" {
-  assert_eq(bool_serializer().to_json(false, JsonFlavor::Readable), "false")
+  assert_eq(bool_serializer().to_readable_json(false), parse_json("false"))
 }
 
 test "from_json_bool_literal" {
@@ -639,7 +750,7 @@ test "type_descriptor_is_bool" {
 }
 
 test "int32_to_json_positive" {
-  assert_eq(int32_serializer().to_json(42, JsonFlavor::Dense), "42")
+  assert_eq(int32_serializer().to_dense_json(42), "42")
 }
 
 test "int32_from_json_float_truncates" {
@@ -656,7 +767,7 @@ test "int32_binary_round_trip" {
 
 test "int64_to_json_large_value_is_quoted" {
   assert_eq(
-    int64_serializer().to_json(9007199254740992L, JsonFlavor::Dense),
+    int64_serializer().to_dense_json(9007199254740992L),
     "\"9007199254740992\"",
   )
 }
@@ -688,7 +799,7 @@ test "int64_binary_round_trip" {
 
 test "hash64_to_json_large_value_is_quoted" {
   assert_eq(
-    hash64_serializer().to_json(9007199254740992UL, JsonFlavor::Dense),
+    hash64_serializer().to_dense_json(9007199254740992UL),
     "\"9007199254740992\"",
   )
 }
@@ -709,14 +820,16 @@ test "hash64_binary_round_trip" {
 
 test "timestamp_to_json_dense_epoch" {
   let epoch = timestamp_from_unix_millis(0L)
-  assert_eq(timestamp_serializer().to_json(epoch, JsonFlavor::Dense), "0")
+  assert_eq(timestamp_serializer().to_dense_json(epoch), "0")
 }
 
 test "timestamp_to_json_readable" {
   let ts = timestamp_from_unix_millis(1234567890000L)
   assert_eq(
-    timestamp_serializer().to_json(ts, JsonFlavor::Readable),
-    "{\n  \"unix_millis\": 1234567890000,\n  \"formatted\": \"2009-02-13T23:31:30.000Z\"\n}",
+    timestamp_serializer().to_readable_json(ts),
+    parse_json(
+      "{\n  \"unix_millis\": 1234567890000,\n  \"formatted\": \"2009-02-13T23:31:30.000Z\"\n}",
+    ),
   )
 }
 

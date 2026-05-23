@@ -1,8 +1,3 @@
-pub enum JsonFlavor {
-  Dense
-  Readable
-}
-
 pub enum UnrecognizedValues {
   Keep
   Drop
@@ -10,10 +5,11 @@ pub enum UnrecognizedValues {
 
 struct TypeAdapter[T] {
   is_default : (T) -> Bool
-  to_json : (T, JsonFlavor) -> String
-  from_json : (Json, Bool) -> Result[T, String]
+  to_dense_json : (T, StringBuilder) -> Unit
+  to_readable_json : (T) -> Json
+  from_json : (Json, UnrecognizedValues) -> Result[T, String]
   encode : (T, OutputStream) -> OutputStream
-  decode : (InputStream, Bool) -> Result[T, String]
+  decode : (InputStream, UnrecognizedValues) -> Result[T, String]
   type_descriptor : () -> TypeDescriptor
 }
 
@@ -90,12 +86,14 @@ fn[T] new_serializer(adapter : TypeAdapter[T]) -> Serializer[T] {
   s
 }
 
-pub fn[T] Serializer::to_json(
-  self : Serializer[T],
-  input : T,
-  flavor : JsonFlavor
-) -> String {
-  (self.adapter.to_json)(input, flavor)
+pub fn[T] Serializer::to_dense_json(self : Serializer[T], input : T) -> String {
+  let builder = StringBuilder::new()
+  (self.adapter.to_dense_json)(input, builder)
+  builder.to_string()
+}
+
+pub fn[T] Serializer::to_readable_json(self : Serializer[T], input : T) -> Json {
+  (self.adapter.to_readable_json)(input)
 }
 
 pub fn[T] Serializer::is_default(self : Serializer[T], input : T) -> Bool {
@@ -113,12 +111,7 @@ pub fn[T] Serializer::from_json(
     } catch {
       _ => return Err("invalid JSON")
     }
-  let keep_unrecognized =
-    match policy {
-      UnrecognizedValues::Keep => true
-      UnrecognizedValues::Drop => false
-    }
-  (self.adapter.from_json)(root, keep_unrecognized)
+  (self.adapter.from_json)(root, policy)
 }
 
 pub fn[T] Serializer::to_bytes(self : Serializer[T], input : T) -> Array[Int] {
@@ -136,16 +129,11 @@ pub fn[T] Serializer::from_bytes(
   bytes : Array[Int],
   policy : UnrecognizedValues
 ) -> Result[T, String] {
-  let keep_unrecognized =
-    match policy {
-      UnrecognizedValues::Keep => true
-      UnrecognizedValues::Drop => false
-    }
   match bytes {
       [115, 107, 105, 114, ..payload] =>
         (self.adapter.decode)(
           input_stream_from_int_array(payload.iter().to_array()),
-          keep_unrecognized,
+          policy,
         )
     _ => Err("invalid binary payload")
   }
