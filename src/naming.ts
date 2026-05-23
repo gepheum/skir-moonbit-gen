@@ -74,6 +74,7 @@ const RESERVED_IDENTIFIERS = new Set<string>([
   "loop",
   "match",
   "mut",
+  "or",
   "priv",
   "pub",
   "raise",
@@ -84,7 +85,6 @@ const RESERVED_IDENTIFIERS = new Set<string>([
   "try",
   "type",
   "typealias",
-  "or",
   "while",
   "with",
 ]);

@@ -19,7 +19,7 @@ export class TypeSpeller {
       }
       case "array": {
         const itemType = this.getMoonbitType(type.item);
-        return `Array[${itemType}]`;
+        return `@client.Array[${itemType}]`;
       }
       case "optional": {
         const otherType = this.getMoonbitType(type.other);
@@ -29,23 +29,23 @@ export class TypeSpeller {
         const { primitive } = type;
         switch (primitive) {
           case "bool":
-            return "Bool";
+            return "@client.Bool";
           case "int32":
-            return "Int";
+            return "@client.Int";
           case "int64":
-            return "Int64";
+            return "@client.Int64";
           case "hash64":
-            return "UInt64";
+            return "@client.UInt64";
           case "float32":
-            return "Float";
+            return "@client.Float";
           case "float64":
-            return "Double";
+            return "@client.Double";
           case "timestamp":
             return "@client.Timestamp";
           case "string":
-            return "String";
+            return "@client.String";
           case "bytes":
-            return "Bytes";
+            return "@client.Bytes";
         }
       }
     }

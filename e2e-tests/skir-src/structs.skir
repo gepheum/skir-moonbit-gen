@@ -145,3 +145,9 @@ struct True {
   by: bool;
   it: [Floats|x];
 }
+
+struct String {
+  s: string;
+}
+
+struct Float {}

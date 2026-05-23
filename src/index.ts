@@ -161,4 +161,4 @@ function shouldImportModule(importedNames: ImportedNames): boolean {
 }
 
 const SKIROUT_PACKAGE_PREFIX = "skir/e2e-tests/skirout";
-const CLIENT_PACKAGE_PATH = "skir/e2e-tests/client";
+const CLIENT_PACKAGE_PATH = "skir/e2e-tests/client/types";
