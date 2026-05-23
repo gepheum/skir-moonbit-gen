@@ -16,17 +16,17 @@ pub fn bool_serializer() -> Serializer[Bool] {
         _ => Ok(false)
       }
     },
-    encode: fn(input : Bool) {
+    encode: fn(input : Bool, out : OutputStream) {
       if input {
-        [1]
+        output_stream_write_int(out, 1)
       } else {
-        [0]
+        output_stream_write_int(out, 0)
       }
     },
-    decode: fn(input : Array[Int], _keep_unrecognized_values : Bool) {
-      match input {
-        [b, ..] => Ok(b != 0)
-        [] => Err("unexpected end of input")
+    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
+      match input_stream_read_int(input) {
+        Ok((b, _tail)) => Ok(b != 0)
+        Err(e) => Err(e)
       }
     },
     type_descriptor: fn() {
@@ -258,9 +258,11 @@ pub fn int32_serializer() -> Serializer[Int] {
         _ => Ok(0)
       }
     },
-    encode: fn(input : Int) { encode_i32(input) },
-    decode: fn(input : Array[Int], _keep_unrecognized_values : Bool) {
-      match decode_number(input) {
+    encode: fn(input : Int, out : OutputStream) {
+      output_stream_write_ints(out, encode_i32(input))
+    },
+    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
+      match decode_number(input_stream_remaining_int_array(input)) {
         Ok(v) => Ok(v.to_int())
         Err(e) => Err(e)
       }
@@ -291,15 +293,15 @@ pub fn int64_serializer() -> Serializer[Int64] {
         _ => Ok(0L)
       }
     },
-    encode: fn(input : Int64) {
+    encode: fn(input : Int64, out : OutputStream) {
       if input >= Int64::from_int(-2147483648) && input <= Int64::from_int(2147483647) {
-        encode_i32(input.to_int())
+        output_stream_write_ints(out, encode_i32(input.to_int()))
       } else {
-        [238, ..encode_i64_le(input)]
+        output_stream_write_ints(out, [238, ..encode_i64_le(input)])
       }
     },
-    decode: fn(input : Array[Int], _keep_unrecognized_values : Bool) {
-      decode_number(input)
+    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
+      decode_number(input_stream_remaining_int_array(input))
     },
     type_descriptor: fn() {
       {
@@ -332,19 +334,19 @@ pub fn hash64_serializer() -> Serializer[UInt64] {
         _ => Ok(0UL)
       }
     },
-    encode: fn(input : UInt64) {
+    encode: fn(input : UInt64, out : OutputStream) {
       if input <= 231UL {
-        [input.to_int()]
+        output_stream_write_ints(out, [input.to_int()])
       } else if input <= 65535UL {
-        [232, ..encode_u16_le(input.to_int())]
+        output_stream_write_ints(out, [232, ..encode_u16_le(input.to_int())])
       } else if input <= 4294967295UL {
-        [233, ..encode_u32_le(input.to_int())]
+        output_stream_write_ints(out, [233, ..encode_u32_le(input.to_int())])
       } else {
-        [234, ..encode_u64_le(input)]
+        output_stream_write_ints(out, [234, ..encode_u64_le(input)])
       }
     },
-    decode: fn(input : Array[Int], _keep_unrecognized_values : Bool) {
-      match decode_number(input) {
+    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
+      match decode_number(input_stream_remaining_int_array(input)) {
         Ok(v) => Ok(v.reinterpret_as_uint64())
         Err(e) => Err(e)
       }
@@ -470,16 +472,16 @@ pub fn timestamp_serializer() -> Serializer[Timestamp] {
     from_json: fn(json : Json, _keep_unrecognized_values : Bool) {
       Ok(timestamp_from_unix_millis(timestamp_json_to_millis(json)))
     },
-    encode: fn(input : Timestamp) {
+    encode: fn(input : Timestamp, out : OutputStream) {
       let ms = clamp_timestamp_millis(input.to_unix_millis())
       if ms == 0L {
-        [0]
+        output_stream_write_int(out, 0)
       } else {
-        [239, ..encode_i64_le(ms)]
+        output_stream_write_ints(out, [239, ..encode_i64_le(ms)])
       }
     },
-    decode: fn(input : Array[Int], _keep_unrecognized_values : Bool) {
-      match decode_number(input) {
+    decode: fn(input : InputStream, _keep_unrecognized_values : Bool) {
+      match decode_number(input_stream_remaining_int_array(input)) {
         Ok(ms) => Ok(timestamp_from_unix_millis(ms))
         Err(e) => Err(e)
       }

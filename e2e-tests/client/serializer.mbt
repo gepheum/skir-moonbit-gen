@@ -12,9 +12,73 @@ struct TypeAdapter[T] {
   is_default : (T) -> Bool
   to_json : (T, JsonFlavor) -> String
   from_json : (Json, Bool) -> Result[T, String]
-  encode : (T) -> Array[Int]
-  decode : (Array[Int], Bool) -> Result[T, String]
+  encode : (T, OutputStream) -> OutputStream
+  decode : (InputStream, Bool) -> Result[T, String]
   type_descriptor : () -> TypeDescriptor
+}
+
+pub struct OutputStream {
+  bytes : Array[Byte]
+  offset : Int
+}
+
+pub fn output_stream_new() -> OutputStream {
+  { bytes: [], offset: 0 }
+}
+
+pub fn output_stream_write_byte(out : OutputStream, b : Byte) -> OutputStream {
+  out.bytes.push(b)
+  { bytes: out.bytes, offset: out.offset + 1 }
+}
+
+pub fn output_stream_write_int(out : OutputStream, b : Int) -> OutputStream {
+  output_stream_write_byte(out, b.to_byte())
+}
+
+pub fn output_stream_write_ints(out : OutputStream, bytes : Array[Int]) -> OutputStream {
+  let mut cur = out
+  for b in bytes {
+    cur = output_stream_write_int(cur, b)
+  }
+  cur
+}
+
+pub fn output_stream_to_int_array(out : OutputStream) -> Array[Int] {
+  let bytes : Array[Int] = []
+  for b in out.bytes {
+    bytes.push(b.to_int())
+  }
+  bytes
+}
+
+pub struct InputStream {
+  bytes : Array[Byte]
+  offset : Int
+}
+
+pub fn input_stream_from_int_array(bytes : Array[Int]) -> InputStream {
+  let out : Array[Byte] = []
+  for b in bytes {
+    out.push(b.to_byte())
+  }
+  { bytes: out, offset: 0 }
+}
+
+pub fn input_stream_read_int(input : InputStream) -> Result[(Int, InputStream), String] {
+  match input.bytes.get(input.offset) {
+    Some(b) => Ok((b.to_int(), { bytes: input.bytes, offset: input.offset + 1 }))
+    None => Err("unexpected end of input")
+  }
+}
+
+pub fn input_stream_remaining_int_array(input : InputStream) -> Array[Int] {
+  let out : Array[Int] = []
+  let mut i = input.offset
+  while i < input.bytes.length() {
+    out.push(input.bytes[i].to_int())
+    i = i + 1
+  }
+  out
 }
 
 pub struct Serializer[T] {
@@ -58,12 +122,13 @@ pub fn[T] Serializer::from_json(
 }
 
 pub fn[T] Serializer::to_bytes(self : Serializer[T], input : T) -> Array[Int] {
-  let out : Array[Int] = [115, 107, 105, 114]
-  let payload = (self.adapter.encode)(input)
-  for b in payload {
-    out.push(b)
-  }
-  out
+  let mut out = output_stream_new()
+  out = output_stream_write_int(out, 115)
+  out = output_stream_write_int(out, 107)
+  out = output_stream_write_int(out, 105)
+  out = output_stream_write_int(out, 114)
+  out = (self.adapter.encode)(input, out)
+  output_stream_to_int_array(out)
 }
 
 pub fn[T] Serializer::from_bytes(
@@ -78,7 +143,10 @@ pub fn[T] Serializer::from_bytes(
     }
   match bytes {
       [115, 107, 105, 114, ..payload] =>
-        (self.adapter.decode)(payload.iter().to_array(), keep_unrecognized)
+        (self.adapter.decode)(
+          input_stream_from_int_array(payload.iter().to_array()),
+          keep_unrecognized,
+        )
     _ => Err("invalid binary payload")
   }
 }
