@@ -9,10 +9,12 @@ export function modulePathToFileStem(modulePath: string): string {
 }
 
 export function modulePathToAlias(modulePath: string): string {
-  return modulePathToPackageDir(modulePath)
-    .replace(/[^a-zA-Z0-9]/g, "_")
-    .replace(/^_+/, "")
-    .concat("_skir");
+  return "skirout_".concat(
+    modulePathToPackageDir(modulePath)
+      .replace(/[^a-zA-Z0-9]/g, "_")
+      .replace(/^_+/, "")
+      .concat("_skir"),
+  );
 }
 
 export function getTypeName(record: RecordLocation): string {
