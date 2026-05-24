@@ -1,4 +1,5 @@
 // TODO: make sure that pre_commit.sh formats
+// TODO: should TypeAdapter be a trait?
 // TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
 // TODO: remove UnrecognizedValues enum, use named parameter for bool
 // TODO: Hide internal fields in Unrecognized

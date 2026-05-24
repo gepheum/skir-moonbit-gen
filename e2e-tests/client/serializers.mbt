@@ -1121,7 +1121,7 @@ pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]
   })
 }
 
-pub fn[T] array_serializer(
+pub fn[T] vector_serializer(
   item_serializer : Serializer[T]
 ) -> Serializer[@immut_vector.Vector[T]] {
   new_serializer({
@@ -1579,12 +1579,12 @@ test "timestamp_binary_round_trip" {
 }
 
 test "array_to_json_dense_nonempty" {
-  let s = array_serializer(int32_serializer())
+  let s = vector_serializer(int32_serializer())
   assert_eq(s.to_dense_json(immut_from_array([1, 2, 3])), "[1,2,3]")
 }
 
 test "array_from_json_null_is_empty" {
-  let s = array_serializer(int32_serializer())
+  let s = vector_serializer(int32_serializer())
   assert_eq(
     expect_ok_immut_int_array(s.from_json("null", UnrecognizedValues::Drop)),
     @immut_vector.Vector::new(),
@@ -1592,12 +1592,12 @@ test "array_from_json_null_is_empty" {
 }
 
 test "array_encode_empty_is_wire_246" {
-  let s = array_serializer(int32_serializer())
+  let s = vector_serializer(int32_serializer())
   assert_eq(s.to_bytes(@immut_vector.Vector::new()), [115, 107, 105, 114, 246])
 }
 
 test "array_binary_round_trip" {
-  let s = array_serializer(int32_serializer())
+  let s = vector_serializer(int32_serializer())
   for v in [
     @immut_vector.Vector::new(),
     immut_from_array([0]),
