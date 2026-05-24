@@ -3,6 +3,10 @@ pub enum UnrecognizedValues {
   Drop
 }
 
+pub fn unrecognized_values_drop() -> UnrecognizedValues {
+  UnrecognizedValues::Drop
+}
+
 struct TypeAdapter[T] {
   is_default : (T) -> Bool
   to_dense_json : (T, StringBuilder) -> Unit

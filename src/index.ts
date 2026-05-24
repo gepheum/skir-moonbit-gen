@@ -3,11 +3,14 @@
 // TODO: remove UnrecognizedValues enum, use named parameter for bool
 // TODO: make them comparable, renderable, etc.
 // TODO: KeyedArray...
+// TODO: remove all the weird logic which looks at "removed"...
 // TODO: rm recursive_default, unrecognized_variant_default, timestamp_defaultake Timestamp much better...
 // TODO: move things like StructAdapter to internal...?
 
 import {
+  convertCase,
   type CodeGenerator,
+  type Constant,
   type Field,
   type ImportedNames,
   type Module,
@@ -89,6 +92,10 @@ class MoonbitSourceFileGenerator {
       this.writeRecord(record, out);
     }
 
+    for (const constant of this.inModule.constants) {
+      this.writeConstant(constant, out);
+    }
+
     if (this.initStatements.length > 0) {
       out.push("fn init {\n");
       for (const statement of this.initStatements) {
@@ -114,6 +121,26 @@ class MoonbitSourceFileGenerator {
 
   private getTypeName(record: RecordLocation): string {
     return getTypeName(record);
+  }
+
+  private writeConstant(constant: Constant, out: string[]): void {
+    if (!constant.type || constant.valueAsDenseJson === undefined) {
+      return;
+    }
+    const moonbitName = `${convertCase(constant.name.text, "lower_underscore")}_const`;
+    const moonbitType = this.typeSpeller.getMoonbitType(constant.type);
+    const serializerExpr = this.getSerializerExpr(constant.type);
+    const defaultExpr = this.typeSpeller.getMoonbitDefault(constant.type);
+    const jsonLiteral = this.toMoonbitStringLiteral(
+      JSON.stringify(constant.valueAsDenseJson),
+    );
+    out.push(`pub let ${moonbitName} : ${moonbitType} =\n`);
+    out.push(
+      `  match ${serializerExpr}.from_json(${jsonLiteral}, @client.unrecognized_values_drop()) {\n`,
+    );
+    out.push("    Ok(value) => value\n");
+    out.push(`    Err(_) => ${defaultExpr}\n`);
+    out.push("  }\n\n");
   }
 
   private writeStruct(record: RecordLocation, out: string[]): void {

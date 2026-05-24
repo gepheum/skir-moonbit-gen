@@ -35,6 +35,10 @@ pub fn unrecognized_variant_default() -> UnrecognizedVariant {
 	@runtime.unrecognized_variant_from_bytes(0, Bytes::default())
 }
 
+pub fn unrecognized_values_drop() -> @runtime.UnrecognizedValues {
+	@runtime.unrecognized_values_drop()
+}
+
 pub fn timestamp_default() -> Timestamp {
 	@runtime.Timestamp::from_unix_millis(0L)
 }
