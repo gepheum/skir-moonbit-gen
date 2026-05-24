@@ -144,8 +144,8 @@ class MoonbitSourceFileGenerator {
   }
 
   private writeStruct(record: RecordLocation, out: string[]): void {
-    const fields = this.getPresentFields(record.record.fields);
-    const removedNumbers = this.getRemovedNumbers(record.record.fields);
+    const fields = record.record.fields;
+    const removedNumbers = record.record.removedNumbers;
     const typeName = this.getTypeName(record);
     const adapterVarName = `${typeName.toLowerCase()}__adapter`;
     const isRecursive = this.isRecursiveRecord(fields);
@@ -329,8 +329,8 @@ class MoonbitSourceFileGenerator {
   }
 
   private writeEnum(record: RecordLocation, out: string[]): void {
-    const variants = this.getPresentFields(record.record.fields);
-    const removedNumbers = this.getRemovedNumbers(record.record.fields);
+    const variants = record.record.fields;
+    const removedNumbers = record.record.removedNumbers;
     const typeName = this.getTypeName(record);
     const unknownVarName = `${typeName.toLowerCase()}__unknown`;
     const adapterVarName = `${typeName.toLowerCase()}__adapter`;
@@ -620,16 +620,6 @@ class MoonbitSourceFileGenerator {
       out.push("  self.vector.find_by_key_or_default(key)\n");
       out.push("}\n\n");
     }
-  }
-
-  private getPresentFields(fields: readonly Field[]): Field[] {
-    return fields.filter((field) => field.name.text !== "removed");
-  }
-
-  private getRemovedNumbers(fields: readonly Field[]): number[] {
-    return fields
-      .filter((field) => field.name.text === "removed")
-      .map((field) => field.number);
   }
 
   private isRecursiveRecord(fields: readonly Field[]): boolean {
