@@ -1,10 +1,10 @@
 // TODO: make sure that pre_commit.sh formats
+// TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
 // TODO: remove UnrecognizedValues enum, use named parameter for bool
-// TODO: Hide internal fields in Unrecognized
 // TODO: make them comparable, renderable, etc.
 // TODO: KeyedArray...
-// TODO: make Timestamp much better...
-// TODO: rm recursive_default, unrecognized_variant_default, timestamp_default
+// TODO: m
+// TODO: rm recursive_default, unrecognized_variant_default, timestamp_defaultake Timestamp much better...
 
 import {
   type CodeGenerator,
@@ -102,7 +102,7 @@ class MoonbitSourceFileGenerator {
     const typeName = this.getTypeName(record);
     const defaultVarName = `${typeName.toLowerCase()}__default`;
 
-    out.push(`pub struct ${typeName} {\n`);
+    out.push(`pub(all) struct ${typeName} {\n`);
     for (const field of fields) {
       const fieldName = toStructFieldName(field.name.text);
       const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
@@ -130,7 +130,7 @@ class MoonbitSourceFileGenerator {
     const typeName = this.getTypeName(record);
     const unknownVarName = `${typeName.toLowerCase()}__unknown`;
 
-    out.push(`pub enum ${typeName} {\n`);
+    out.push(`pub(all) enum ${typeName} {\n`);
     const usedNames = new Set<string>();
     usedNames.add("Unknown");
     out.push(`  Unknown(@client.UnrecognizedVariant[${typeName}])\n`);
