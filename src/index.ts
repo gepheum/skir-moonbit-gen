@@ -179,7 +179,7 @@ class MoonbitSourceFileGenerator {
       out.push(`  ${typeName}::new(\n`);
       for (const field of fields) {
         const fieldName = toStructFieldName(field.name.text);
-        out.push(`    ${fieldName},\n`);
+        out.push(`    ${fieldName}=${fieldName},\n`);
       }
       out.push("  )\n");
     }
