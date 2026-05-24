@@ -39,10 +39,8 @@ fn[T, K : Hash + Eq] KeyedVector::build_index(self : KeyedVector[T, K]) -> @hash
   let index : @hashmap.HashMap[K, T] = @hashmap.HashMap([], capacity=self.vector.length())
   for item in self.vector.iter() {
     let key = (self.spec.get_key)(item)
-    // Keep first occurrence for duplicate keys.
-    if !index.contains(key) {
-      index.set(key, item)
-    }
+    // Keep last occurrence for duplicate keys.
+    index.set(key, item)
   }
   index
 }
@@ -114,13 +112,13 @@ test "find_by_key_returns_none_when_missing" {
   assert_eq_kv(kv.find_by_key("missing") is None, true)
 }
 
-test "find_by_key_keeps_first_duplicate" {
+test "find_by_key_keeps_last_duplicate" {
   let kv = KeyedVector::from_array(
     [{ key: "dup", value: 1 }, { key: "dup", value: 2 }],
     mock_spec(),
   )
   match kv.find_by_key("dup") {
-    Some(v) => assert_eq_kv(v.value, 1)
+    Some(v) => assert_eq_kv(v.value, 2)
     None => panic()
   }
 }
