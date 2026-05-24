@@ -1063,6 +1063,64 @@ pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
   })
 }
 
+pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]] {
+  new_serializer({
+    is_default: fn(input : Recursive[T]) {
+      match input {
+        Recursive::Default => true
+        Recursive::Some(v) => other.is_default(v)
+      }
+    },
+    to_dense_json: fn(input : Recursive[T], builder : StringBuilder) {
+      match input {
+        Recursive::Default => builder.write_string("[]")
+        Recursive::Some(v) => builder.write_string(other.to_dense_json(v))
+      }
+    },
+    to_readable_json: fn(input : Recursive[T]) {
+      match input {
+        Recursive::Default => parse_json("{}")
+        Recursive::Some(v) => other.to_readable_json(v)
+      }
+    },
+    from_json: fn(json : Json, policy : UnrecognizedValues) {
+      match json {
+        Json::Array(arr) if arr.length() == 0 => Ok(Recursive::Default)
+        Json::Object(obj) if obj.is_empty() => Ok(Recursive::Default)
+        _ =>
+          match (other.adapter.from_json)(json, policy) {
+            Ok(v) => Ok(Recursive::Some(v))
+            Err(e) => Err(e)
+          }
+      }
+    },
+    encode: fn(input : Recursive[T], out : OutputStream) {
+      match input {
+        Recursive::Default => out.write_int(246)
+        Recursive::Some(v) => (other.adapter.encode)(v, out)
+      }
+    },
+    decode: fn(input : InputStream, policy : UnrecognizedValues) {
+      match input.peek_int() {
+        Ok(246) =>
+          match input.read_int() {
+            Ok((_wire, rest)) => Ok((Recursive::Default, rest))
+            Err(e) => Err(e)
+          }
+        Ok(_) =>
+          match (other.adapter.decode)(input, policy) {
+            Ok((v, tail)) => Ok((Recursive::Some(v), tail))
+            Err(e) => Err(e)
+          }
+        Err(e) => Err(e)
+      }
+    },
+    type_descriptor: fn() {
+      (other.adapter.type_descriptor)()
+    },
+  })
+}
+
 pub fn[T] array_serializer(
   item_serializer : Serializer[T]
 ) -> Serializer[@immut_vector.Vector[T]] {
@@ -1228,6 +1286,28 @@ fn expect_ok_optional_int(r : Result[Int?, String]) -> Int? {
   match r {
     Ok(v) => v
     Err(_) => panic()
+  }
+}
+
+fn expect_ok_recursive_int(r : Result[Recursive[Int], String]) -> Recursive[Int] {
+  match r {
+    Ok(v) => v
+    Err(_) => panic()
+  }
+}
+
+fn assert_recursive_int_eq(lhs : Recursive[Int], rhs : Recursive[Int]) -> Unit {
+  match lhs {
+    Recursive::Default =>
+      match rhs {
+        Recursive::Default => ()
+        _ => panic()
+      }
+    Recursive::Some(a) =>
+      match rhs {
+        Recursive::Some(b) => assert_eq(a, b)
+        _ => panic()
+      }
   }
 }
 
@@ -1559,5 +1639,51 @@ test "optional_binary_round_trip" {
   let s = optional_serializer(int32_serializer())
   for v in [None, Some(0), Some(42), Some(-1)] {
     assert_eq(expect_ok_optional_int(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+  }
+}
+
+test "recursive_to_json_dense_default_is_empty_array" {
+  assert_eq(recursive_serializer(int32_serializer()).to_dense_json(Recursive::Default), "[]")
+}
+
+test "recursive_to_json_readable_default_is_empty_object" {
+  assert_eq(
+    recursive_serializer(int32_serializer()).to_readable_json(Recursive::Default),
+    parse_json("{}"),
+  )
+}
+
+test "recursive_from_json_empty_array_is_default" {
+  assert_recursive_int_eq(
+    expect_ok_recursive_int(
+      recursive_serializer(int32_serializer()).from_json("[]", UnrecognizedValues::Drop),
+    ),
+    Recursive::Default,
+  )
+}
+
+test "recursive_from_json_empty_object_is_default" {
+  assert_recursive_int_eq(
+    expect_ok_recursive_int(
+      recursive_serializer(int32_serializer()).from_json("{}", UnrecognizedValues::Drop),
+    ),
+    Recursive::Default,
+  )
+}
+
+test "recursive_encode_default_is_wire_246" {
+  assert_eq(
+    recursive_serializer(int32_serializer()).to_bytes(Recursive::Default),
+    [115, 107, 105, 114, 246],
+  )
+}
+
+test "recursive_binary_round_trip" {
+  let s = recursive_serializer(int32_serializer())
+  for v in [Recursive::Default, Recursive::Some(0), Recursive::Some(42), Recursive::Some(-1)] {
+    assert_recursive_int_eq(
+      expect_ok_recursive_int(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)),
+      v,
+    )
   }
 }
