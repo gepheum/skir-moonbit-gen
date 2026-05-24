@@ -7,6 +7,7 @@ pub struct UnrecognizedFields[T] {
   format : UnrecognizedFormat
   array_len : Int
   values : Bytes
+  unused : T?
 }
 
 pub fn[T] unrecognized_fields_from_json(
@@ -17,6 +18,7 @@ pub fn[T] unrecognized_fields_from_json(
     format: UnrecognizedFormat::DenseJson,
     array_len,
     values: json_bytes,
+    unused: None,
   }
 }
 
@@ -28,6 +30,7 @@ pub fn[T] unrecognized_fields_from_bytes(
     format: UnrecognizedFormat::Bytes,
     array_len,
     values: raw_bytes,
+    unused: None,
   }
 }
 
@@ -35,6 +38,7 @@ pub struct UnrecognizedVariant[T] {
   format : UnrecognizedFormat
   number : Int
   value : Bytes
+  unused : T?
 }
 
 pub fn[T] unrecognized_variant_from_bytes(
@@ -45,6 +49,7 @@ pub fn[T] unrecognized_variant_from_bytes(
     format: UnrecognizedFormat::Bytes,
     number,
     value: raw_bytes,
+    unused: None,
   }
 }
 
@@ -56,5 +61,6 @@ pub fn[T] unrecognized_variant_from_json(
     format: UnrecognizedFormat::DenseJson,
     number,
     value: json_bytes,
+    unused: None,
   }
 }
