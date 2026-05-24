@@ -3,16 +3,16 @@ pub enum UnrecognizedFormat {
   Bytes
 }
 
-pub struct UnrecognizedFields {
+pub struct UnrecognizedFields[T] {
   format : UnrecognizedFormat
   array_len : Int
   values : Bytes
 }
 
-pub fn unrecognized_fields_from_json(
+pub fn[T] unrecognized_fields_from_json(
   array_len : Int,
   json_bytes : Bytes
-) -> UnrecognizedFields {
+) -> UnrecognizedFields[T] {
   {
     format: UnrecognizedFormat::DenseJson,
     array_len,
@@ -20,10 +20,10 @@ pub fn unrecognized_fields_from_json(
   }
 }
 
-pub fn unrecognized_fields_from_bytes(
+pub fn[T] unrecognized_fields_from_bytes(
   array_len : Int,
   raw_bytes : Bytes
-) -> UnrecognizedFields {
+) -> UnrecognizedFields[T] {
   {
     format: UnrecognizedFormat::Bytes,
     array_len,
@@ -31,16 +31,16 @@ pub fn unrecognized_fields_from_bytes(
   }
 }
 
-pub struct UnrecognizedVariant {
+pub struct UnrecognizedVariant[T] {
   format : UnrecognizedFormat
   number : Int
   value : Bytes
 }
 
-pub fn unrecognized_variant_from_bytes(
+pub fn[T] unrecognized_variant_from_bytes(
   number : Int,
   raw_bytes : Bytes
-) -> UnrecognizedVariant {
+) -> UnrecognizedVariant[T] {
   {
     format: UnrecognizedFormat::Bytes,
     number,
@@ -48,10 +48,10 @@ pub fn unrecognized_variant_from_bytes(
   }
 }
 
-pub fn unrecognized_variant_from_json(
+pub fn[T] unrecognized_variant_from_json(
   number : Int,
   json_bytes : Bytes
-) -> UnrecognizedVariant {
+) -> UnrecognizedVariant[T] {
   {
     format: UnrecognizedFormat::DenseJson,
     number,

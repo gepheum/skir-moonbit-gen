@@ -1,5 +1,7 @@
 // TODO: make sure that pre_commit.sh formats
 // TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
+// TODO: remove UnrecognizedValues enum, use named parameter for bool
+// TODO: Hide internal fields in Unrecognized
 // TODO: make them comparable, renderable, etc.
 // TODO: KeyedArray...
 // TODO: make Timestamp much better...
@@ -106,7 +108,7 @@ class MoonbitSourceFileGenerator {
       const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
       out.push(`  ${fieldName} : ${moonbitType}\n`);
     }
-    out.push("  _unrecognized : @client.UnrecognizedFields?\n");
+    out.push(`  _unrecognized : @client.UnrecognizedFields[${typeName}]?\n`);
     out.push("}\n\n");
 
     out.push(`let ${defaultVarName} : ${typeName} = {\n`);
@@ -131,7 +133,7 @@ class MoonbitSourceFileGenerator {
     out.push(`pub enum ${typeName} {\n`);
     const usedNames = new Set<string>();
     usedNames.add("Unknown");
-    out.push("  Unknown(@client.UnrecognizedVariant)\n");
+    out.push(`  Unknown(@client.UnrecognizedVariant[${typeName}])\n`);
     for (const variant of variants) {
       const variantName = toEnumVariantName(variant.name.text, usedNames);
       usedNames.add(variantName);

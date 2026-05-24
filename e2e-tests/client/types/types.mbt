@@ -12,14 +12,14 @@ pub type Bytes = @runtime.NativeBytes
 // Runtime aliases re-exported so generated code can keep a single @client alias.
 pub type Recursive[T] = @runtime.Recursive[T]
 pub type Timestamp = @runtime.Timestamp
-pub type UnrecognizedFields = @runtime.UnrecognizedFields
-pub type UnrecognizedVariant = @runtime.UnrecognizedVariant
+pub type UnrecognizedFields[T] = @runtime.UnrecognizedFields[T]
+pub type UnrecognizedVariant[T] = @runtime.UnrecognizedVariant[T]
 
 pub fn[T] recursive_default() -> Recursive[T] {
 	@runtime.recursive_default()
 }
 
-pub fn unrecognized_variant_default() -> UnrecognizedVariant {
+pub fn[T] unrecognized_variant_default() -> UnrecognizedVariant[T] {
 	@runtime.unrecognized_variant_from_bytes(0, Bytes::default())
 }
 
