@@ -3,84 +3,78 @@ pub enum UnrecognizedFormat {
   Bytes
 } derive(Eq, Debug)
 
-pub struct UnrecognizedFields[T] {
+pub struct UnrecognizedFields {
   format : UnrecognizedFormat
   array_len : Int
   values : Bytes
-  unused : T?
 }
 
-pub fn[T] unrecognized_fields_from_json(
+pub fn unrecognized_fields_from_json(
   array_len : Int,
   json_bytes : Bytes
-) -> UnrecognizedFields[T] {
+) -> UnrecognizedFields {
   {
     format: UnrecognizedFormat::DenseJson,
     array_len,
     values: json_bytes,
-    unused: None,
   }
 }
 
-pub fn[T] unrecognized_fields_from_bytes(
+pub fn unrecognized_fields_from_bytes(
   array_len : Int,
   raw_bytes : Bytes
-) -> UnrecognizedFields[T] {
+) -> UnrecognizedFields {
   {
     format: UnrecognizedFormat::Bytes,
     array_len,
     values: raw_bytes,
-    unused: None,
   }
 }
 
-pub struct UnrecognizedVariant[T] {
+pub struct UnrecognizedVariant {
   format : UnrecognizedFormat
   number : Int
   value : Bytes
-  unused : T?
 }
 
-pub fn[T] unrecognized_variant_from_bytes(
+pub fn unrecognized_variant_from_bytes(
   number : Int,
   raw_bytes : Bytes
-) -> UnrecognizedVariant[T] {
+) -> UnrecognizedVariant {
   {
     format: UnrecognizedFormat::Bytes,
     number,
     value: raw_bytes,
-    unused: None,
   }
 }
 
-pub fn[T] unrecognized_variant_from_json(
+pub fn unrecognized_variant_from_json(
   number : Int,
   json_bytes : Bytes
-) -> UnrecognizedVariant[T] {
+) -> UnrecognizedVariant {
   {
     format: UnrecognizedFormat::DenseJson,
     number,
     value: json_bytes,
-    unused: None,
   }
 }
 
-pub impl[T] Eq for UnrecognizedFields[T] with equal(self, other) {
+pub impl Eq for UnrecognizedFields with equal(self, other) {
   self.format == other.format &&
   self.array_len == other.array_len &&
   self.values == other.values
 }
 
-pub impl[T] Debug for UnrecognizedFields[T] with to_repr(self) {
+pub impl Debug for UnrecognizedFields with to_repr(self) {
   Debug::to_repr(self.format)
 }
 
-pub impl[T] Eq for UnrecognizedVariant[T] with equal(self, other) {
+pub impl Eq for UnrecognizedVariant with equal(self, other) {
   self.format == other.format &&
   self.number == other.number &&
   self.value == other.value
 }
 
-pub impl[T] Debug for UnrecognizedVariant[T] with to_repr(self) {
+pub impl Debug for UnrecognizedVariant with to_repr(self) {
   Debug::to_repr(self.format)
 }

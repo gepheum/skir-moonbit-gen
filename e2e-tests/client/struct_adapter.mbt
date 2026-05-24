@@ -15,8 +15,8 @@ pub struct StructAdapter[T] {
   qualified_name : String
   doc : String
   default_value : () -> T
-  get_unrecognized : (T) -> UnrecognizedFields[T]?
-  set_unrecognized : (T, UnrecognizedFields[T]?) -> Unit
+  get_unrecognized : (T) -> UnrecognizedFields?
+  set_unrecognized : (T, UnrecognizedFields?) -> Unit
   priv ordered_entries : Array[StructFieldEntry[T]]
   priv name_to_index : @hashmap.HashMap[String, Int]
   priv slot_to_index : Array[Int?]
@@ -28,8 +28,8 @@ pub fn[T] StructAdapter::new(
   qualified_name : String,
   doc : String,
   default_value : () -> T,
-  get_unrecognized : (T) -> UnrecognizedFields[T]?,
-  set_unrecognized : (T, UnrecognizedFields[T]?) -> Unit,
+  get_unrecognized : (T) -> UnrecognizedFields?,
+  set_unrecognized : (T, UnrecognizedFields?) -> Unit,
 ) -> StructAdapter[T] {
   {
     module_path,

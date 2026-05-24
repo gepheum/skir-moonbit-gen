@@ -138,9 +138,7 @@ class MoonbitSourceFileGenerator {
       const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
       out.push(`  mut ${fieldName} : ${moonbitType}\n`);
     }
-    out.push(
-      `  priv mut _unrecognized : @client.UnrecognizedFields[${typeName}]?\n`,
-    );
+    out.push("  priv mut _unrecognized : @client.UnrecognizedFields?\n");
     out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
     out.push(`pub fn ${typeName}::new(`);
@@ -232,7 +230,7 @@ class MoonbitSourceFileGenerator {
       out.push(`  fn() { ${typeName}::default() },\n`);
       out.push(`  fn(input : ${typeName}) { input._unrecognized },\n`);
       out.push(
-        `  fn(input : ${typeName}, value : @client.UnrecognizedFields[${typeName}]?) {\n`,
+        `  fn(input : ${typeName}, value : @client.UnrecognizedFields?) {\n`,
       );
       out.push("    input._unrecognized = value\n");
       out.push("  },\n");
@@ -277,7 +275,7 @@ class MoonbitSourceFileGenerator {
       out.push(`    fn() { ${typeName}::default() },\n`);
       out.push(`    fn(input : ${typeName}) { input._unrecognized },\n`);
       out.push(
-        `    fn(input : ${typeName}, value : @client.UnrecognizedFields[${typeName}]?) {\n`,
+        `    fn(input : ${typeName}, value : @client.UnrecognizedFields?) {\n`,
       );
       out.push("      input._unrecognized = value\n");
       out.push("    },\n");
@@ -316,7 +314,7 @@ class MoonbitSourceFileGenerator {
     out.push(`pub(all) enum ${typeName} {\n`);
     const usedNames = new Set<string>();
     usedNames.add("Unknown");
-    out.push(`  Unknown(@client.UnrecognizedVariant[${typeName}])\n`);
+    out.push("  Unknown(@client.UnrecognizedVariant)\n");
     const variantNames: Array<{
       field: Field;
       hasPayload: boolean;
@@ -413,7 +411,7 @@ class MoonbitSourceFileGenerator {
       out.push("    }\n");
       out.push("  },\n");
       out.push(
-        `  fn(value : @client.UnrecognizedVariant[${typeName}]) { ${typeName}::Unknown(value) },\n`,
+        `  fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(value) },\n`,
       );
       out.push(`  fn(input : ${typeName}) {\n`);
       out.push("    match input {\n");
@@ -463,7 +461,7 @@ class MoonbitSourceFileGenerator {
       out.push("      }\n");
       out.push("    },\n");
       out.push(
-        `    fn(value : @client.UnrecognizedVariant[${typeName}]) { ${typeName}::Unknown(value) },\n`,
+        `    fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(value) },\n`,
       );
       out.push(`    fn(input : ${typeName}) {\n`);
       out.push("      match input {\n");
