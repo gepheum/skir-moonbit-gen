@@ -1,7 +1,7 @@
 pub enum UnrecognizedFormat {
   DenseJson
   Bytes
-}
+} derive(Eq, Debug)
 
 pub struct UnrecognizedFields[T] {
   format : UnrecognizedFormat
@@ -63,4 +63,24 @@ pub fn[T] unrecognized_variant_from_json(
     value: json_bytes,
     unused: None,
   }
+}
+
+pub impl[T] Eq for UnrecognizedFields[T] with equal(self, other) {
+  self.format == other.format &&
+  self.array_len == other.array_len &&
+  self.values == other.values
+}
+
+pub impl[T] Debug for UnrecognizedFields[T] with to_repr(self) {
+  Debug::to_repr(self.format)
+}
+
+pub impl[T] Eq for UnrecognizedVariant[T] with equal(self, other) {
+  self.format == other.format &&
+  self.number == other.number &&
+  self.value == other.value
+}
+
+pub impl[T] Debug for UnrecognizedVariant[T] with to_repr(self) {
+  Debug::to_repr(self.format)
 }

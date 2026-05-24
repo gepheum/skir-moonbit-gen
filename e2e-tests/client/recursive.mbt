@@ -3,7 +3,7 @@
 pub enum Recursive[T] {
   Default
   Some(T)
-}
+} derive(Eq, Debug)
 
 pub fn[T] recursive_default() -> Recursive[T] {
   Recursive::Default

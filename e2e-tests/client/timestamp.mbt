@@ -148,6 +148,10 @@ pub impl Show for Timestamp with to_string(self) {
   self.to_iso8601()
 }
 
+pub impl Debug for Timestamp with to_repr(self) {
+  Debug::to_repr(self.unix_millis)
+}
+
 fn[T : Eq] assert_eq_ts(lhs : T, rhs : T) -> Unit {
   if lhs != rhs {
     panic()

@@ -129,3 +129,11 @@ test "find_by_key_or_default_uses_spec_default_item" {
   assert_eq_kv(v.key, "")
   assert_eq_kv(v.value, 0)
 }
+
+pub impl[T : Eq, K] Eq for KeyedVector[T, K] with equal(self, other) {
+  self.vector == other.vector
+}
+
+pub impl[T : Debug, K] Debug for KeyedVector[T, K] with to_repr(self) {
+  Debug::to_repr(self.vector)
+}

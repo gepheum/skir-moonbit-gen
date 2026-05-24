@@ -116,7 +116,7 @@ class MoonbitSourceFileGenerator {
       out.push(`  ${fieldName} : ${moonbitType}\n`);
     }
     out.push(`  _unrecognized : @client.UnrecognizedFields[${typeName}]?\n`);
-    out.push("}\n\n");
+    out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
     out.push(`let ${defaultVarName} : ${typeName} = {\n`);
     for (const field of fields) {
@@ -156,7 +156,7 @@ class MoonbitSourceFileGenerator {
         out.push(`  ${variantName}\n`);
       }
     }
-    out.push("}\n\n");
+    out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
     out.push(`let ${unknownVarName} : ${typeName} = `);
     out.push(
@@ -173,7 +173,7 @@ class MoonbitSourceFileGenerator {
       for (const variant of variantNames) {
         out.push(`  ${variant.variantName}\n`);
       }
-      out.push("} derive(Eq, Hash)\n\n");
+      out.push("} derive(@builtin.Eq, @builtin.Hash, @debug.Debug)\n\n");
 
       out.push(
         `pub fn ${typeName}::kind(self : ${typeName}) -> ${typeName}_kind {\n`,
@@ -222,11 +222,12 @@ class MoonbitSourceFileGenerator {
 
       const methodSuffix = keySpec.keyExtractor.replace(/\./g, "_");
 
-      out.push(`pub struct ${wrapperTypeName} {\n`);
+      out.push(`pub struct ${wrapperTypeName} {
+`);
       out.push(
         `  priv vector : @client.KeyedVector[${typeName}, ${keySpec.moonbitKeyType}]\n`,
       );
-      out.push("}\n\n");
+      out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
       out.push(
         `pub fn ${wrapperTypeName}::vector(self : ${wrapperTypeName}) -> @client.Vector[${typeName}] {\n`,
@@ -280,6 +281,8 @@ export const GENERATOR = new MoonbitCodeGenerator();
 function generateMoonPkg(module: Module): string {
   const imports: string[] = [];
   imports.push(`  "${CLIENT_PACKAGE_PATH}" @client,`);
+  imports.push(`  "moonbitlang/core/builtin" @builtin,`);
+  imports.push(`  "moonbitlang/core/debug" @debug,`);
 
   for (const [importedPath, importedNames] of Object.entries(
     module.pathToImportedNames,
