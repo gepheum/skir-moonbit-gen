@@ -15,6 +15,7 @@ import {
   type RecordLocation,
 } from "skir-internal";
 import { z } from "zod";
+import { KeyedArrayContext } from "./keyed_array_context.js";
 import {
   getTypeName,
   modulePathToAlias,
@@ -35,6 +36,7 @@ class MoonbitCodeGenerator implements CodeGenerator<Config> {
 
   generateCode(input: CodeGenerator.Input<Config>): CodeGenerator.Output {
     const { recordMap } = input;
+    const keyedArrayContext = new KeyedArrayContext(input.modules);
     const outputFiles: CodeGenerator.OutputFile[] = [];
     for (const module of input.modules) {
       const packageDir = modulePathToPackageDir(module.path);
@@ -45,7 +47,11 @@ class MoonbitCodeGenerator implements CodeGenerator<Config> {
       });
       outputFiles.push({
         path: `${packageDir}/${fileStem}.mbt`,
-        code: new MoonbitSourceFileGenerator(module, recordMap).generate(),
+        code: new MoonbitSourceFileGenerator(
+          module,
+          recordMap,
+          keyedArrayContext,
+        ).generate(),
       });
     }
     return { files: outputFiles };
@@ -56,6 +62,7 @@ class MoonbitSourceFileGenerator {
   constructor(
     private readonly inModule: Module,
     recordMap: ReadonlyMap<RecordKey, RecordLocation>,
+    private readonly keyedArrayContext: KeyedArrayContext,
   ) {
     this.typeSpeller = new TypeSpeller(recordMap, inModule.path);
   }
@@ -123,6 +130,8 @@ class MoonbitSourceFileGenerator {
     out.push(`pub fn ${typeName}::default() -> ${typeName} {\n`);
     out.push(`  ${defaultVarName}\n`);
     out.push("}\n\n");
+
+    this.writeKeyedVectorWrappers(record, typeName, out);
   }
 
   private writeEnum(record: RecordLocation, out: string[]): void {
@@ -134,9 +143,12 @@ class MoonbitSourceFileGenerator {
     const usedNames = new Set<string>();
     usedNames.add("Unknown");
     out.push(`  Unknown(@client.UnrecognizedVariant[${typeName}])\n`);
+    const variantNames: Array<{ hasPayload: boolean; variantName: string }> =
+      [];
     for (const variant of variants) {
       const variantName = toEnumVariantName(variant.name.text, usedNames);
       usedNames.add(variantName);
+      variantNames.push({ hasPayload: !!variant.type, variantName });
       if (variant.type) {
         const variantType = this.typeSpeller.getMoonbitType(variant.type);
         out.push(`  ${variantName}(${variantType})\n`);
@@ -154,6 +166,86 @@ class MoonbitSourceFileGenerator {
     out.push(`pub fn ${typeName}::unknown() -> ${typeName} {\n`);
     out.push(`  ${unknownVarName}\n`);
     out.push("}\n\n");
+
+    if (this.keyedArrayContext.isEnumUsedAsKey(record.record)) {
+      out.push(`pub(all) enum ${typeName}_kind {\n`);
+      out.push("  Unknown\n");
+      for (const variant of variantNames) {
+        out.push(`  ${variant.variantName}\n`);
+      }
+      out.push("}\n\n");
+
+      out.push(
+        `pub fn ${typeName}::kind(self : ${typeName}) -> ${typeName}_kind {\n`,
+      );
+      out.push("  match self {\n");
+      out.push(`    ${typeName}::Unknown(_) => ${typeName}_kind::Unknown\n`);
+      for (const variant of variantNames) {
+        if (variant.hasPayload) {
+          out.push(
+            `    ${typeName}::${variant.variantName}(_) => ${typeName}_kind::${variant.variantName}\n`,
+          );
+        } else {
+          out.push(
+            `    ${typeName}::${variant.variantName} => ${typeName}_kind::${variant.variantName}\n`,
+          );
+        }
+      }
+      out.push("  }\n");
+      out.push("}\n\n");
+    }
+  }
+
+  private writeKeyedVectorWrappers(
+    record: RecordLocation,
+    typeName: string,
+    out: string[],
+  ): void {
+    const keySpecs = this.keyedArrayContext.getKeySpecsForItemStruct(
+      record.record,
+      this.typeSpeller,
+    );
+
+    for (const keySpec of keySpecs) {
+      const wrapperTypeName = `${typeName}${keySpec.moonbitTypeSuffix}`;
+      const specVarName = `${wrapperTypeName.toLowerCase()}__spec`;
+
+      out.push(
+        `let ${specVarName} : @client.KeyedVectorSpec[${typeName}, ${keySpec.moonbitKeyType}] = {\n`,
+      );
+      out.push(
+        `  get_key: fn(item : ${typeName}) { ${keySpec.moonbitKeyExpr} },\n`,
+      );
+      out.push(`  key_extractor: "${keySpec.keyExtractor}",\n`);
+      out.push(`  default_item: ${typeName}::default(),\n`);
+      out.push("}\n\n");
+
+      out.push(`pub(all) struct ${wrapperTypeName} {\n`);
+      out.push(
+        `  vector : @client.KeyedVector[${typeName}, ${keySpec.moonbitKeyType}]\n`,
+      );
+      out.push("}\n\n");
+
+      out.push(
+        `pub fn ${wrapperTypeName}::new(vector : @client.Vector[${typeName}]) -> ${wrapperTypeName} {\n`,
+      );
+      out.push(
+        `  { vector: @client.KeyedVector::new(vector, ${specVarName}) }\n`,
+      );
+      out.push("}\n\n");
+
+      out.push(
+        `pub fn ${wrapperTypeName}::from_array(items : Array[${typeName}]) -> ${wrapperTypeName} {\n`,
+      );
+      out.push(
+        `  { vector: @client.KeyedVector::from_array(items, ${specVarName}) }\n`,
+      );
+      out.push("}\n\n");
+
+      out.push(`pub fn ${wrapperTypeName}::empty() -> ${wrapperTypeName} {\n`);
+      out.push(`  { vector: @client.KeyedVector::empty(${specVarName}) }\n`);
+      out.push("}\n\n");
+    }
   }
 
   private getPresentFields(fields: readonly Field[]): Field[] {

@@ -1,9 +1,13 @@
 import type {
+  ArrayType,
   Field,
+  PrimitiveType,
   RecordKey,
   RecordLocation,
+  ResolvedRecordRef,
   ResolvedType,
 } from "skir-internal";
+import { convertCase } from "skir-internal";
 import { getTypeName, modulePathToAlias } from "./naming.js";
 
 export class TypeSpeller {
@@ -23,6 +27,10 @@ export class TypeSpeller {
         return `@${modulePathToAlias(recordLocation.modulePath)}.${typeName}`;
       }
       case "array": {
+        const maybeWrapperType = this.getMoonbitKeyedArrayWrapperType(type);
+        if (maybeWrapperType) {
+          return maybeWrapperType;
+        }
         const itemType = this.getMoonbitType(type.item);
         return `@client.Array[${itemType}]`;
       }
@@ -85,8 +93,13 @@ export class TypeSpeller {
         }
         return `@${modulePathToAlias(recordLocation.modulePath)}.${defaultExpr}`;
       }
-      case "array":
+      case "array": {
+        const maybeWrapperType = this.getMoonbitKeyedArrayWrapperType(type);
+        if (maybeWrapperType) {
+          return `${maybeWrapperType}::empty()`;
+        }
         return "@client.Array::new()";
+      }
       case "optional":
         return "None";
       case "primitive": {
@@ -119,5 +132,38 @@ export class TypeSpeller {
       throw new Error("Expected field.type to be defined");
     }
     return field.type;
+  }
+
+  private getMoonbitKeyedArrayWrapperType(type: ArrayType): string | null {
+    if (!type.key || type.item.kind !== "record") {
+      return null;
+    }
+    if (!this.keyTypeIsSupported(type.key.keyType)) {
+      return null;
+    }
+
+    const itemRecordLocation = this.recordMap.get(type.item.key)!;
+    const itemTypeName = getTypeName(itemRecordLocation);
+    const suffix = "_by".concat(
+      type.key.path
+        .map((p) => convertCase(p.name.text, "UpperCamel"))
+        .join("_"),
+    );
+    const wrapperTypeName = `${itemTypeName}${suffix}`;
+    if (itemRecordLocation.modulePath === this.currentModulePath) {
+      return wrapperTypeName;
+    }
+    return `@${modulePathToAlias(itemRecordLocation.modulePath)}.${wrapperTypeName}`;
+  }
+
+  private keyTypeIsSupported(
+    keyType: PrimitiveType | ResolvedRecordRef,
+  ): boolean {
+    return (
+      keyType.kind === "record" ||
+      (keyType.primitive !== "float32" &&
+        keyType.primitive !== "float64" &&
+        keyType.primitive !== "bytes")
+    );
   }
 }

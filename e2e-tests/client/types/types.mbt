@@ -8,12 +8,15 @@ pub type Float = @runtime.NativeFloat
 pub type Double = @runtime.NativeDouble
 pub type String = @runtime.NativeString
 pub type Bytes = @runtime.NativeBytes
+pub type Vector[T] = @immut_vector.Vector[T]
 
 // Runtime aliases re-exported so generated code can keep a single @client alias.
 pub type Recursive[T] = @runtime.Recursive[T]
 pub type Timestamp = @runtime.Timestamp
 pub type UnrecognizedFields[T] = @runtime.UnrecognizedFields[T]
 pub type UnrecognizedVariant[T] = @runtime.UnrecognizedVariant[T]
+pub type KeyedVectorSpec[T, K] = @runtime.KeyedVectorSpec[T, K]
+pub type KeyedVector[T, K] = @runtime.KeyedVector[T, K]
 
 pub fn[T] recursive_default() -> Recursive[T] {
 	@runtime.recursive_default()
