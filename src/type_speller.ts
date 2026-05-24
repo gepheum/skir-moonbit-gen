@@ -65,6 +65,53 @@ export class TypeSpeller {
     return moonbitType;
   }
 
+  getMoonbitFieldDefault(field: Field): string {
+    if (field.isRecursive === "hard") {
+      return "@client.recursive_default()";
+    }
+    return this.getMoonbitDefault(this.getRequiredFieldType(field));
+  }
+
+  getMoonbitDefault(type: ResolvedType): string {
+    switch (type.kind) {
+      case "record": {
+        const recordLocation = this.recordMap.get(type.key)!;
+        const typeName = getTypeName(recordLocation);
+        const defaultExpr = `${typeName}::default()`;
+        if (recordLocation.modulePath === this.currentModulePath) {
+          return defaultExpr;
+        }
+        return `@${modulePathToAlias(recordLocation.modulePath)}.${defaultExpr}`;
+      }
+      case "array":
+        return "@client.Array::new()";
+      case "optional":
+        return "None";
+      case "primitive": {
+        const { primitive } = type;
+        switch (primitive) {
+          case "bool":
+            return "false";
+          case "int32":
+            return "0";
+          case "int64":
+            return "0L";
+          case "hash64":
+            return "0UL";
+          case "float32":
+          case "float64":
+            return "0.0";
+          case "timestamp":
+            return "@client.timestamp_default()";
+          case "string":
+            return '""';
+          case "bytes":
+            return "Bytes::default()";
+        }
+      }
+    }
+  }
+
   private getRequiredFieldType(field: Field): ResolvedType {
     if (!field.type) {
       throw new Error("Expected field.type to be defined");

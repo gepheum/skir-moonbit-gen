@@ -4,3 +4,7 @@ pub enum Recursive[T] {
   Default
   Some(T)
 }
+
+pub fn[T] recursive_default() -> Recursive[T] {
+  Recursive::Default
+}

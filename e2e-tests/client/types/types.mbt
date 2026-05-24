@@ -14,3 +14,15 @@ pub type Recursive[T] = @runtime.Recursive[T]
 pub type Timestamp = @runtime.Timestamp
 pub type UnrecognizedFields = @runtime.UnrecognizedFields
 pub type UnrecognizedVariant = @runtime.UnrecognizedVariant
+
+pub fn[T] recursive_default() -> Recursive[T] {
+	@runtime.recursive_default()
+}
+
+pub fn unrecognized_variant_default() -> UnrecognizedVariant {
+	@runtime.unrecognized_variant_from_bytes(0, Bytes::default())
+}
+
+pub fn timestamp_default() -> Timestamp {
+	@runtime.timestamp_from_unix_millis(0L)
+}
