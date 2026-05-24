@@ -5,18 +5,18 @@ priv struct StructFieldEntry[T] {
   field_type : TypeSignature
   is_field_default : (T) -> Bool
   field_to_json : (T, StringBuilder, Bool, String) -> Unit
-  field_from_json : (T, Json, UnrecognizedValues) -> Result[T, String]
+  field_from_json : (T, Json, UnrecognizedValues) -> Result[Unit, String]
   encode_field : (T, OutputStream) -> OutputStream
-  decode_field : (T, InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
+  decode_field : (T, InputStream, UnrecognizedValues) -> Result[InputStream, String]
 }
 
 pub struct StructAdapter[T] {
   module_path : String
   qualified_name : String
   doc : String
-  default_value : T
+  default_value : () -> T
   get_unrecognized : (T) -> UnrecognizedFields[T]?
-  set_unrecognized : (T, UnrecognizedFields[T]?) -> T
+  set_unrecognized : (T, UnrecognizedFields[T]?) -> Unit
   priv ordered_entries : Array[StructFieldEntry[T]]
   priv name_to_index : @hashmap.HashMap[String, Int]
   priv slot_to_index : Array[Int?]
@@ -27,9 +27,9 @@ pub fn[T] struct_adapter_new(
   module_path : String,
   qualified_name : String,
   doc : String,
-  default_value : T,
+  default_value : () -> T,
   get_unrecognized : (T) -> UnrecognizedFields[T]?,
-  set_unrecognized : (T, UnrecognizedFields[T]?) -> T,
+  set_unrecognized : (T, UnrecognizedFields[T]?) -> Unit,
 ) -> StructAdapter[T] {
   {
     module_path,
@@ -51,7 +51,7 @@ pub fn[T, V] StructAdapter::add_field(
   number : Int,
   serializer : Serializer[V],
   getter : (T) -> V,
-  setter : (T, V) -> T,
+  setter : (T, V) -> Unit,
   doc : String,
 ) -> Unit {
   let entry : StructFieldEntry[T] = {
@@ -70,14 +70,20 @@ pub fn[T, V] StructAdapter::add_field(
     },
     field_from_json: fn(input : T, json : Json, policy : UnrecognizedValues) {
       match serializer.from_json(json.stringify(), policy) {
-        Ok(v) => Ok(setter(input, v))
+        Ok(v) => {
+          setter(input, v)
+          Ok(())
+        }
         Err(e) => Err(e)
       }
     },
     encode_field: fn(input : T, out : OutputStream) { (serializer.adapter.encode)(getter(input), out) },
     decode_field: fn(input : T, in0 : InputStream, policy : UnrecognizedValues) {
       match (serializer.adapter.decode)(in0, policy) {
-        Ok((v, tail)) => Ok((setter(input, v), tail))
+        Ok((v, tail)) => {
+          setter(input, v)
+          Ok(tail)
+        }
         Err(e) => Err(e)
       }
     },
@@ -195,14 +201,14 @@ fn[T] StructAdapter::from_dense_json_impl(
   arr : Array[Json],
   policy : UnrecognizedValues,
 ) -> Result[T, String] {
-  let mut value = self.default_value
+  let value = (self.default_value)()
   for e in self.ordered_entries {
     let n = e.number
     if n < 0 || n >= arr.length() {
       continue
     }
     match (e.field_from_json)(value, arr[n], policy) {
-      Ok(v) => value = v
+      Ok(_) => ()
       Err(err) => return Err(err)
     }
   }
@@ -220,7 +226,7 @@ fn[T] StructAdapter::from_dense_json_impl(
         extra = extra + arr[i].stringify()
       }
       let ud = unrecognized_fields_from_json(arr.length(), @utf8.encode(extra))
-      value = (self.set_unrecognized)(value, Some(ud))
+      (self.set_unrecognized)(value, Some(ud))
     }
   }
 
@@ -234,12 +240,12 @@ fn[T] StructAdapter::from_readable_json_impl(
 ) -> Result[T, String] {
   match json {
     Json::Object(obj) => {
-      let mut value = self.default_value
+      let value = (self.default_value)()
       for e in self.ordered_entries {
         match obj.get(e.name) {
           Some(v) =>
             match (e.field_from_json)(value, v, policy) {
-              Ok(next) => value = next
+              Ok(_) => ()
               Err(err) => return Err(err)
             }
           None => ()
@@ -247,7 +253,7 @@ fn[T] StructAdapter::from_readable_json_impl(
       }
       Ok(value)
     }
-    _ => Ok(self.default_value)
+    _ => Ok((self.default_value)())
   }
 }
 
@@ -377,7 +383,7 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
       match json {
         Json::Array(arr) => self.from_dense_json_impl(arr, policy)
         Json::Object(_) => self.from_readable_json_impl(json, policy)
-        _ => Ok(self.default_value)
+        _ => Ok((self.default_value)())
       }
     },
     encode: fn(input : T, out : OutputStream) {
@@ -418,7 +424,7 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
         Ok((wire, rest)) => {
           cur = rest
           if wire == 0 || wire == 246 {
-            return Ok((self.default_value, cur))
+            return Ok(((self.default_value)(), cur))
           }
 
           let slot_count =
@@ -435,7 +441,7 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
               wire - 246
             }
 
-          let mut value = self.default_value
+          let value = (self.default_value)()
           let recognized_count = self.slot_to_index.length()
           let slots_to_fill = struct_min(slot_count, recognized_count)
 
@@ -443,10 +449,7 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
             match self.slot_to_index[i] {
               Some(idx) =>
                 match (self.ordered_entries[idx].decode_field)(value, cur, policy) {
-                  Ok((next_value, next_stream)) => {
-                    value = next_value
-                    cur = next_stream
-                  }
+                  Ok(next_stream) => { cur = next_stream }
                   Err(e) => return Err(e)
                 }
               None =>
@@ -469,16 +472,15 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
               let after_len = cur.remaining_int_array().length()
               let consumed_len = before.length() - after_len
               let captured = before[0:consumed_len].iter().to_array()
-              value =
-                (self.set_unrecognized)(
-                  value,
-                  Some(
-                    unrecognized_fields_from_bytes(
-                      slot_count,
-                      struct_int_array_to_bytes(captured),
-                    ),
+              (self.set_unrecognized)(
+                value,
+                Some(
+                  unrecognized_fields_from_bytes(
+                    slot_count,
+                    struct_int_array_to_bytes(captured),
                   ),
-                )
+                ),
+              )
             } else {
               for _ in recognized_count..<slot_count {
                 match skip_value(cur) {

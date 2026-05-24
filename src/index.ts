@@ -120,32 +120,53 @@ class MoonbitSourceFileGenerator {
     const fields = this.getPresentFields(record.record.fields);
     const removedNumbers = this.getRemovedNumbers(record.record.fields);
     const typeName = this.getTypeName(record);
-    const defaultVarName = `${typeName.toLowerCase()}__default`;
     const adapterVarName = `${typeName.toLowerCase()}__adapter`;
     const isRecursive = this.isRecursiveRecord(fields);
     const moduleName = this.toMoonbitStringLiteral(this.getRecordNamespace());
     const typeNameLiteral = this.toMoonbitStringLiteral(typeName);
 
-    out.push(`pub(all) struct ${typeName} {\n`);
+    out.push(`pub struct ${typeName} {\n`);
     for (const field of fields) {
       const fieldName = toStructFieldName(field.name.text);
       const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
-      out.push(`  ${fieldName} : ${moonbitType}\n`);
+      out.push(`  mut ${fieldName} : ${moonbitType}\n`);
     }
-    out.push(`  _unrecognized : @client.UnrecognizedFields[${typeName}]?\n`);
+    out.push(
+      `  priv mut _unrecognized : @client.UnrecognizedFields[${typeName}]?\n`,
+    );
     out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
-    out.push(`let ${defaultVarName} : ${typeName} = {\n`);
+    out.push(`pub fn ${typeName}::new(`);
+    if (fields.length > 0) {
+      out.push("\n");
+      for (const field of fields) {
+        const fieldName = toStructFieldName(field.name.text);
+        const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
+        out.push(`  ${fieldName}~ : ${moonbitType},\n`);
+      }
+    }
+    out.push(`) -> ${typeName} {\n`);
+    out.push("  {\n");
     for (const field of fields) {
       const fieldName = toStructFieldName(field.name.text);
-      const defaultValue = this.typeSpeller.getMoonbitFieldDefault(field);
-      out.push(`  ${fieldName}: ${defaultValue},\n`);
+      out.push(`    ${fieldName},\n`);
     }
-    out.push("  _unrecognized: None,\n");
+    out.push("    _unrecognized: None,\n");
+    out.push("  }\n");
     out.push("}\n\n");
 
     out.push(`pub fn ${typeName}::default() -> ${typeName} {\n`);
-    out.push(`  ${defaultVarName}\n`);
+    if (fields.length === 0) {
+      out.push(`  ${typeName}::new()\n`);
+    } else {
+      out.push(`  ${typeName}::new(\n`);
+      for (const field of fields) {
+        const fieldName = toStructFieldName(field.name.text);
+        const defaultValue = this.typeSpeller.getMoonbitFieldDefault(field);
+        out.push(`    ${fieldName}=${defaultValue},\n`);
+      }
+      out.push("  )\n");
+    }
     out.push("}\n\n");
 
     if (isRecursive) {
@@ -155,29 +176,18 @@ class MoonbitSourceFileGenerator {
       out.push(`  ${moduleName},\n`);
       out.push(`  ${typeNameLiteral},\n`);
       out.push('  "",\n');
-      out.push(`  ${defaultVarName},\n`);
+      out.push(`  fn() { ${typeName}::default() },\n`);
       out.push(`  fn(input : ${typeName}) { input._unrecognized },\n`);
       out.push(
         `  fn(input : ${typeName}, value : @client.UnrecognizedFields[${typeName}]?) {\n`,
       );
-      out.push("    {\n");
-      for (const field of fields) {
-        const fieldName = toStructFieldName(field.name.text);
-        out.push(`      ${fieldName}: input.${fieldName},\n`);
-      }
-      out.push("      _unrecognized: value,\n");
-      out.push("    }\n");
+      out.push("    input._unrecognized = value\n");
       out.push("  },\n");
       out.push(")\n\n");
 
       for (const field of fields) {
         this.initStatements.push(
-          ...this.getStructAddFieldLines(
-            typeName,
-            adapterVarName,
-            fields,
-            field,
-          ),
+          ...this.getStructAddFieldLines(typeName, adapterVarName, field),
         );
       }
       for (const number of removedNumbers) {
@@ -195,18 +205,12 @@ class MoonbitSourceFileGenerator {
       out.push(`    ${moduleName},\n`);
       out.push(`    ${typeNameLiteral},\n`);
       out.push('    "",\n');
-      out.push(`    ${defaultVarName},\n`);
+      out.push(`    fn() { ${typeName}::default() },\n`);
       out.push(`    fn(input : ${typeName}) { input._unrecognized },\n`);
       out.push(
         `    fn(input : ${typeName}, value : @client.UnrecognizedFields[${typeName}]?) {\n`,
       );
-      out.push("      {\n");
-      for (const field of fields) {
-        const fieldName = toStructFieldName(field.name.text);
-        out.push(`        ${fieldName}: input.${fieldName},\n`);
-      }
-      out.push("        _unrecognized: value,\n");
-      out.push("      }\n");
+      out.push("      input._unrecognized = value\n");
       out.push("    },\n");
       out.push("  )\n");
 
@@ -214,7 +218,6 @@ class MoonbitSourceFileGenerator {
         for (const line of this.getStructAddFieldLines(
           typeName,
           "adapter",
-          fields,
           field,
         )) {
           out.push(`  ${line}\n`);
@@ -542,7 +545,7 @@ class MoonbitSourceFileGenerator {
   }
 
   private isRecursiveRecord(fields: readonly Field[]): boolean {
-    return !fields.every((field) => !field.isRecursive);
+    return fields.some((field) => field.isRecursive);
   }
 
   private getRecordNamespace(): string {
@@ -596,7 +599,6 @@ class MoonbitSourceFileGenerator {
   private getStructAddFieldLines(
     typeName: string,
     adapterVarName: string,
-    allFields: readonly Field[],
     field: Field,
   ): string[] {
     const fieldName = toStructFieldName(field.name.text);
@@ -630,17 +632,7 @@ class MoonbitSourceFileGenerator {
     lines.push(`  ${serializerExpr},`);
     lines.push(`  fn(input : ${typeName}) { ${getterExpr} },`);
     lines.push(`  fn(input : ${typeName}, value : ${setterValueType}) {`);
-    lines.push("    {");
-    for (const currentField of allFields) {
-      const currentFieldName = toStructFieldName(currentField.name.text);
-      if (currentFieldName === fieldName) {
-        lines.push(`      ${currentFieldName}: ${setterExpr},`);
-      } else {
-        lines.push(`      ${currentFieldName}: input.${currentFieldName},`);
-      }
-    }
-    lines.push("      _unrecognized: input._unrecognized,");
-    lines.push("    }");
+    lines.push(`    input.${fieldName} = ${setterExpr}`);
     lines.push("  },");
     lines.push('  "",');
     lines.push(")");
