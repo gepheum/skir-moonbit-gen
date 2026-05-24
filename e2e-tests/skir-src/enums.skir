@@ -51,6 +51,7 @@ enum Kind {
   struct WrapOption {}
   wrap_option: WrapOption;
   create_option: WrapOption;
+  null;
 }
 
 enum Status {

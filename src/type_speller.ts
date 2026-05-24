@@ -77,7 +77,9 @@ export class TypeSpeller {
       case "record": {
         const recordLocation = this.recordMap.get(type.key)!;
         const typeName = getTypeName(recordLocation);
-        const defaultExpr = `${typeName}::default()`;
+        const defaultMethod =
+          recordLocation.record.recordType === "enum" ? "unknown" : "default";
+        const defaultExpr = `${typeName}::${defaultMethod}()`;
         if (recordLocation.modulePath === this.currentModulePath) {
           return defaultExpr;
         }
