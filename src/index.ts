@@ -130,7 +130,6 @@ class MoonbitSourceFileGenerator {
     const moonbitName = `${convertCase(constant.name.text, "lower_underscore")}_const`;
     const moonbitType = this.typeSpeller.getMoonbitType(constant.type);
     const serializerExpr = this.getSerializerExpr(constant.type);
-    const defaultExpr = this.typeSpeller.getMoonbitDefault(constant.type);
     const jsonLiteral = this.toMoonbitStringLiteral(
       JSON.stringify(constant.valueAsDenseJson),
     );
@@ -139,7 +138,7 @@ class MoonbitSourceFileGenerator {
       `  match ${serializerExpr}.from_json(${jsonLiteral}, @client.unrecognized_values_drop()) {\n`,
     );
     out.push("    Ok(value) => value\n");
-    out.push(`    Err(_) => ${defaultExpr}\n`);
+    out.push("    Err(_) => panic()\n");
     out.push("  }\n\n");
   }
 
@@ -623,7 +622,7 @@ class MoonbitSourceFileGenerator {
   }
 
   private isRecursiveRecord(fields: readonly Field[]): boolean {
-    return fields.some((field) => field.isRecursive);
+    return fields.some((field) => !!field.isRecursive);
   }
 
   private getRecordNamespace(): string {
