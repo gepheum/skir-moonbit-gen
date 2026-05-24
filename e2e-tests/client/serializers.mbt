@@ -865,87 +865,6 @@ pub fn float64_serializer() -> Serializer[Double] {
   })
 }
 
-fn int64_div_euclid(a : Int64, b : Int64) -> Int64 {
-  let q = a / b
-  let r = a % b
-  if r < 0L {
-    if b > 0L {
-      q - 1L
-    } else {
-      q + 1L
-    }
-  } else {
-    q
-  }
-}
-
-fn int64_rem_euclid(a : Int64, b : Int64) -> Int64 {
-  a - int64_div_euclid(a, b) * b
-}
-
-fn zero_pad(n : Int, width : Int) -> String {
-  let s = n.to_string()
-  if s.length() >= width {
-    s
-  } else {
-    let mut out = ""
-    for _ in 0..<(width - s.length()) {
-      out += "0"
-    }
-    out + s
-  }
-}
-
-fn millis_to_iso8601(ms0 : Int64) -> String {
-  let ms = clamp_timestamp_millis(ms0)
-  let millis_part = int64_rem_euclid(ms, 1000L).to_int()
-  let secs = int64_div_euclid(ms, 1000L)
-  let time_of_day = int64_rem_euclid(secs, 86400L)
-  let h = (time_of_day / 3600L).to_int()
-  let mi = ((time_of_day % 3600L) / 60L).to_int()
-  let s = (time_of_day % 60L).to_int()
-
-  let days = int64_div_euclid(secs, 86400L)
-  let z = days + 719468L
-  let era = int64_div_euclid(z, 146097L)
-  let doe = z - era * 146097L
-  let yoe =
-    int64_div_euclid(
-      doe - int64_div_euclid(doe, 1460L) + int64_div_euclid(doe, 36524L) -
-      int64_div_euclid(doe, 146096L),
-      365L,
-    )
-  let y = yoe + era * 400L
-  let doy =
-    doe - (365L * yoe + int64_div_euclid(yoe, 4L) - int64_div_euclid(yoe, 100L))
-  let mp = int64_div_euclid(5L * doy + 2L, 153L)
-  let d = (doy - int64_div_euclid(153L * mp + 2L, 5L) + 1L).to_int()
-  let m = if mp < 10L { (mp + 3L).to_int() } else { (mp - 9L).to_int() }
-  let y_final = if m <= 2 { y + 1L } else { y }
-
-  let y_str =
-    if y_final >= 0L {
-      zero_pad(y_final.to_int(), 4)
-    } else {
-      y_final.to_string()
-    }
-
-  y_str +
-  "-" +
-  zero_pad(m, 2) +
-  "-" +
-  zero_pad(d, 2) +
-  "T" +
-  zero_pad(h, 2) +
-  ":" +
-  zero_pad(mi, 2) +
-  ":" +
-  zero_pad(s, 2) +
-  "." +
-  zero_pad(millis_part, 3) +
-  "Z"
-}
-
 fn timestamp_json_to_millis(json : Json) -> Int64 {
   match json {
     Json::Number(n, ..) => n.round().to_int64()
@@ -961,26 +880,28 @@ fn timestamp_json_to_millis(json : Json) -> Int64 {
 
 pub fn timestamp_serializer() -> Serializer[Timestamp] {
   new_serializer({
-    is_default: fn(input : Timestamp) { input.to_unix_millis() == 0L },
+    is_default: fn(input : Timestamp) { input.unix_millis() == 0L },
     to_dense_json: fn(input : Timestamp, builder : StringBuilder) {
-      let ms = clamp_timestamp_millis(input.to_unix_millis())
+      let ts = Timestamp::from_unix_millis(input.unix_millis())
+      let ms = ts.unix_millis()
       builder.write_string(ms.to_string())
     },
     to_readable_json: fn(input : Timestamp) {
-      let ms = clamp_timestamp_millis(input.to_unix_millis())
+      let ts = Timestamp::from_unix_millis(input.unix_millis())
+      let ms = ts.unix_millis()
       parse_json(
         "{\n  \"unix_millis\": " +
         ms.to_string() +
         ",\n  \"formatted\": \"" +
-        millis_to_iso8601(ms) +
+        ts.to_iso8601() +
         "\"\n}",
       )
     },
     from_json: fn(json : Json, _policy : UnrecognizedValues) {
-      Ok(timestamp_from_unix_millis(timestamp_json_to_millis(json)))
+      Ok(Timestamp::from_unix_millis(timestamp_json_to_millis(json)))
     },
     encode: fn(input : Timestamp, out : OutputStream) {
-      let ms = clamp_timestamp_millis(input.to_unix_millis())
+      let ms = Timestamp::from_unix_millis(input.unix_millis()).unix_millis()
       if ms == 0L {
         out.write_int(0)
       } else {
@@ -989,7 +910,7 @@ pub fn timestamp_serializer() -> Serializer[Timestamp] {
     },
     decode: fn(input : InputStream, _policy : UnrecognizedValues) {
       match decode_number_with_tail(input) {
-        Ok((ms, tail)) => Ok((timestamp_from_unix_millis(ms), tail))
+        Ok((ms, tail)) => Ok((Timestamp::from_unix_millis(ms), tail))
         Err(e) => Err(e)
       }
     },
@@ -1548,12 +1469,12 @@ test "float64_binary_encoding_1_5" {
 }
 
 test "timestamp_to_json_dense_epoch" {
-  let epoch = timestamp_from_unix_millis(0L)
+  let epoch = Timestamp::from_unix_millis(0L)
   assert_eq(timestamp_serializer().to_dense_json(epoch), "0")
 }
 
 test "timestamp_to_json_readable" {
-  let ts = timestamp_from_unix_millis(1234567890000L)
+  let ts = Timestamp::from_unix_millis(1234567890000L)
   assert_eq(
     timestamp_serializer().to_readable_json(ts),
     parse_json(
@@ -1565,17 +1486,34 @@ test "timestamp_to_json_readable" {
 test "timestamp_from_json_object_readable" {
   let json = "{\"unix_millis\":1234567890000,\"formatted\":\"ignored\"}"
   let parsed = expect_ok_timestamp(timestamp_serializer().from_json(json, UnrecognizedValues::Drop))
-  assert_eq(parsed.to_unix_millis(), 1234567890000L)
+  assert_eq(parsed.unix_millis(), 1234567890000L)
 }
 
 test "timestamp_binary_round_trip" {
   let s = timestamp_serializer()
   for ms in [0L, 1L, 1234567890000L, -1000L] {
-    let ts = timestamp_from_unix_millis(ms)
+    let ts = Timestamp::from_unix_millis(ms)
     let decoded =
-      expect_ok_timestamp(s.from_bytes(s.to_bytes(ts), UnrecognizedValues::Drop)).to_unix_millis()
-    assert_eq(decoded, clamp_timestamp_millis(ms))
+      expect_ok_timestamp(s.from_bytes(s.to_bytes(ts), UnrecognizedValues::Drop)).unix_millis()
+    assert_eq(decoded, Timestamp::from_unix_millis(ms).unix_millis())
   }
+}
+
+test "timestamp_comparison_operators" {
+  let a = Timestamp::from_unix_millis(1000L)
+  let b = Timestamp::from_unix_millis(2000L)
+  let c = Timestamp::from_unix_millis(1000L)
+
+  assert_eq(a == c, true)
+  assert_eq(a < b, true)
+  assert_eq(a <= c, true)
+  assert_eq(b > a, true)
+  assert_eq(b >= c, true)
+}
+
+test "timestamp_to_string_is_iso8601" {
+  let ts = Timestamp::from_unix_millis(1234567890000L)
+  assert_eq(ts.to_string(), "2009-02-13T23:31:30.000Z")
 }
 
 test "array_to_json_dense_nonempty" {

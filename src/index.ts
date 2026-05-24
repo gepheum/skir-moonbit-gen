@@ -4,6 +4,7 @@
 // TODO: make them comparable, renderable, etc.
 // TODO: KeyedArray...
 // TODO: make Timestamp much better...
+// TODO: rm recursive_default, unrecognized_variant_default, timestamp_default
 
 import {
   type CodeGenerator,

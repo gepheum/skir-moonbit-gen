@@ -24,5 +24,5 @@ pub fn[T] unrecognized_variant_default() -> UnrecognizedVariant[T] {
 }
 
 pub fn timestamp_default() -> Timestamp {
-	@runtime.timestamp_from_unix_millis(0L)
+	@runtime.Timestamp::from_unix_millis(0L)
 }
