@@ -1,9 +1,9 @@
 // TODO: make sure that pre_commit.sh formats
+// TODO: make Serializer.adapter private?
 // TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
 // TODO: remove UnrecognizedValues enum, use named parameter for bool
 // TODO: make them comparable, renderable, etc.
 // TODO: KeyedArray...
-// TODO: m
 // TODO: rm recursive_default, unrecognized_variant_default, timestamp_defaultake Timestamp much better...
 
 import {
@@ -13,9 +13,13 @@ import {
   type Module,
   type RecordKey,
   type RecordLocation,
+  type ResolvedType,
 } from "skir-internal";
 import { z } from "zod";
-import { KeyedArrayContext } from "./keyed_array_context.js";
+import {
+  KeyedArrayContext,
+  keyTypeIsSupported,
+} from "./keyed_array_context.js";
 import {
   getTypeName,
   modulePathToAlias,
@@ -85,6 +89,14 @@ class MoonbitSourceFileGenerator {
       this.writeRecord(record, out);
     }
 
+    if (this.initStatements.length > 0) {
+      out.push("fn init {\n");
+      for (const statement of this.initStatements) {
+        out.push(`  ${statement}\n`);
+      }
+      out.push("}\n\n");
+    }
+
     return out.join("");
   }
 
@@ -106,8 +118,13 @@ class MoonbitSourceFileGenerator {
 
   private writeStruct(record: RecordLocation, out: string[]): void {
     const fields = this.getPresentFields(record.record.fields);
+    const removedNumbers = this.getRemovedNumbers(record.record.fields);
     const typeName = this.getTypeName(record);
     const defaultVarName = `${typeName.toLowerCase()}__default`;
+    const adapterVarName = `${typeName.toLowerCase()}__adapter`;
+    const isRecursive = this.isRecursiveRecord(fields);
+    const moduleName = this.toMoonbitStringLiteral(this.getRecordNamespace());
+    const typeNameLiteral = this.toMoonbitStringLiteral(typeName);
 
     out.push(`pub(all) struct ${typeName} {\n`);
     for (const field of fields) {
@@ -131,24 +148,126 @@ class MoonbitSourceFileGenerator {
     out.push(`  ${defaultVarName}\n`);
     out.push("}\n\n");
 
+    if (isRecursive) {
+      out.push(
+        `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = @runtime.struct_adapter_new(\n`,
+      );
+      out.push(`  ${moduleName},\n`);
+      out.push(`  ${typeNameLiteral},\n`);
+      out.push('  "",\n');
+      out.push(`  ${defaultVarName},\n`);
+      out.push(`  fn(input : ${typeName}) { input._unrecognized },\n`);
+      out.push(
+        `  fn(input : ${typeName}, value : @client.UnrecognizedFields[${typeName}]?) {\n`,
+      );
+      out.push("    {\n");
+      for (const field of fields) {
+        const fieldName = toStructFieldName(field.name.text);
+        out.push(`      ${fieldName}: input.${fieldName},\n`);
+      }
+      out.push("      _unrecognized: value,\n");
+      out.push("    }\n");
+      out.push("  },\n");
+      out.push(")\n\n");
+
+      for (const field of fields) {
+        this.initStatements.push(
+          ...this.getStructAddFieldLines(
+            typeName,
+            adapterVarName,
+            fields,
+            field,
+          ),
+        );
+      }
+      for (const number of removedNumbers) {
+        this.initStatements.push(
+          `${adapterVarName}.add_removed_number(${number})`,
+        );
+      }
+      this.initStatements.push(`${adapterVarName}.finalize()`);
+    } else {
+      const adapterInitFnName = `${adapterVarName}__init`;
+      out.push(
+        `fn ${adapterInitFnName}() -> @runtime.StructAdapter[${typeName}] {\n`,
+      );
+      out.push("  let adapter = @runtime.struct_adapter_new(\n");
+      out.push(`    ${moduleName},\n`);
+      out.push(`    ${typeNameLiteral},\n`);
+      out.push('    "",\n');
+      out.push(`    ${defaultVarName},\n`);
+      out.push(`    fn(input : ${typeName}) { input._unrecognized },\n`);
+      out.push(
+        `    fn(input : ${typeName}, value : @client.UnrecognizedFields[${typeName}]?) {\n`,
+      );
+      out.push("      {\n");
+      for (const field of fields) {
+        const fieldName = toStructFieldName(field.name.text);
+        out.push(`        ${fieldName}: input.${fieldName},\n`);
+      }
+      out.push("        _unrecognized: value,\n");
+      out.push("      }\n");
+      out.push("    },\n");
+      out.push("  )\n");
+
+      for (const field of fields) {
+        for (const line of this.getStructAddFieldLines(
+          typeName,
+          "adapter",
+          fields,
+          field,
+        )) {
+          out.push(`  ${line}\n`);
+        }
+      }
+      for (const number of removedNumbers) {
+        out.push(`  adapter.add_removed_number(${number})\n`);
+      }
+      out.push("  adapter.finalize()\n");
+      out.push("  adapter\n");
+      out.push("}\n\n");
+
+      out.push(
+        `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
+      );
+    }
+
+    out.push(
+      `pub fn ${typeName}::serializer() -> @runtime.Serializer[${typeName}] {\n`,
+    );
+    out.push(`  ${adapterVarName}.serializer()\n`);
+    out.push("}\n\n");
+
     this.writeKeyedVectorWrappers(record, typeName, out);
   }
 
   private writeEnum(record: RecordLocation, out: string[]): void {
     const variants = this.getPresentFields(record.record.fields);
+    const removedNumbers = this.getRemovedNumbers(record.record.fields);
     const typeName = this.getTypeName(record);
     const unknownVarName = `${typeName.toLowerCase()}__unknown`;
+    const adapterVarName = `${typeName.toLowerCase()}__adapter`;
+    const isRecursive = this.isRecursiveRecord(variants);
+    const moduleName = this.toMoonbitStringLiteral(this.getRecordNamespace());
+    const typeNameLiteral = this.toMoonbitStringLiteral(typeName);
 
     out.push(`pub(all) enum ${typeName} {\n`);
     const usedNames = new Set<string>();
     usedNames.add("Unknown");
     out.push(`  Unknown(@client.UnrecognizedVariant[${typeName}])\n`);
-    const variantNames: Array<{ hasPayload: boolean; variantName: string }> =
-      [];
+    const variantNames: Array<{
+      field: Field;
+      hasPayload: boolean;
+      variantName: string;
+    }> = [];
     for (const variant of variants) {
       const variantName = toEnumVariantName(variant.name.text, usedNames);
       usedNames.add(variantName);
-      variantNames.push({ hasPayload: !!variant.type, variantName });
+      variantNames.push({
+        field: variant,
+        hasPayload: !!variant.type,
+        variantName,
+      });
       if (variant.type) {
         const variantType = this.typeSpeller.getMoonbitType(variant.type);
         out.push(`  ${variantName}(${variantType})\n`);
@@ -165,6 +284,149 @@ class MoonbitSourceFileGenerator {
 
     out.push(`pub fn ${typeName}::unknown() -> ${typeName} {\n`);
     out.push(`  ${unknownVarName}\n`);
+    out.push("}\n\n");
+
+    const addVariantLines: string[] = [];
+    let kindOrdinal = 1;
+    for (const variant of variantNames) {
+      const number = variant.field.number;
+      const nameLiteral = this.toMoonbitStringLiteral(variant.field.name.text);
+      if (!variant.field.type) {
+        addVariantLines.push(
+          `${adapterVarName}.add_constant_variant(${nameLiteral}, ${number}, ${kindOrdinal}, "", ${typeName}::${variant.variantName})`,
+        );
+      } else {
+        const resolvedType = variant.field.type;
+        const isKeyedArrayVariant =
+          resolvedType.kind === "array" &&
+          !!resolvedType.key &&
+          keyTypeIsSupported(resolvedType.key.keyType);
+        const serializerExpr = this.getSerializerExpr(resolvedType);
+
+        let valueType = this.typeSpeller.getMoonbitType(resolvedType);
+        let wrappedValueExpr = "value";
+        let extractedValueExpr = "value";
+        let defaultValueExpr = this.typeSpeller.getMoonbitDefault(resolvedType);
+
+        if (isKeyedArrayVariant) {
+          const itemType = this.typeSpeller.getMoonbitType(resolvedType.item);
+          const wrapperType = this.typeSpeller.getMoonbitType(resolvedType);
+          valueType = `@client.Vector[${itemType}]`;
+          wrappedValueExpr = `${wrapperType}::new(value)`;
+          extractedValueExpr = "value.vector()";
+          defaultValueExpr = `${defaultValueExpr}.vector()`;
+        }
+
+        addVariantLines.push(
+          `${adapterVarName}.add_wrapper_variant(${nameLiteral}, ${number}, ${kindOrdinal}, ${serializerExpr}, "", fn(value : ${valueType}) { ${typeName}::${variant.variantName}(${wrappedValueExpr}) }, fn(input : ${typeName}) { if input is ${typeName}::${variant.variantName}(value) { ${extractedValueExpr} } else { ${defaultValueExpr} } })`,
+        );
+      }
+      kindOrdinal = kindOrdinal + 1;
+    }
+
+    if (isRecursive) {
+      out.push(
+        `let ${adapterVarName} : @runtime.EnumAdapter[${typeName}] = @runtime.enum_adapter_new(\n`,
+      );
+      out.push(`  ${moduleName},\n`);
+      out.push(`  ${typeNameLiteral},\n`);
+      out.push('  "",\n');
+      out.push(`  ${unknownVarName},\n`);
+      out.push(`  fn(input : ${typeName}) {\n`);
+      out.push("    match input {\n");
+      out.push(`      ${typeName}::Unknown(_) => 0\n`);
+      kindOrdinal = 1;
+      for (const variant of variantNames) {
+        if (variant.hasPayload) {
+          out.push(
+            `      ${typeName}::${variant.variantName}(_) => ${kindOrdinal}\n`,
+          );
+        } else {
+          out.push(
+            `      ${typeName}::${variant.variantName} => ${kindOrdinal}\n`,
+          );
+        }
+        kindOrdinal = kindOrdinal + 1;
+      }
+      out.push("    }\n");
+      out.push("  },\n");
+      out.push(
+        `  fn(value : @client.UnrecognizedVariant[${typeName}]) { ${typeName}::Unknown(value) },\n`,
+      );
+      out.push(`  fn(input : ${typeName}) {\n`);
+      out.push("    match input {\n");
+      out.push(`      ${typeName}::Unknown(value) => Some(value)\n`);
+      out.push("      _ => None\n");
+      out.push("    }\n");
+      out.push("  },\n");
+      out.push(")\n\n");
+
+      for (const line of addVariantLines) {
+        this.initStatements.push(line);
+      }
+      for (const number of removedNumbers) {
+        this.initStatements.push(
+          `${adapterVarName}.add_removed_number(${number})`,
+        );
+      }
+      this.initStatements.push(`${adapterVarName}.finalize()`);
+    } else {
+      const adapterInitFnName = `${adapterVarName}__init`;
+      out.push(
+        `fn ${adapterInitFnName}() -> @runtime.EnumAdapter[${typeName}] {\n`,
+      );
+      out.push("  let adapter = @runtime.enum_adapter_new(\n");
+      out.push(`    ${moduleName},\n`);
+      out.push(`    ${typeNameLiteral},\n`);
+      out.push('    "",\n');
+      out.push(`    ${unknownVarName},\n`);
+      out.push(`    fn(input : ${typeName}) {\n`);
+      out.push("      match input {\n");
+      out.push(`        ${typeName}::Unknown(_) => 0\n`);
+      kindOrdinal = 1;
+      for (const variant of variantNames) {
+        if (variant.hasPayload) {
+          out.push(
+            `        ${typeName}::${variant.variantName}(_) => ${kindOrdinal}\n`,
+          );
+        } else {
+          out.push(
+            `        ${typeName}::${variant.variantName} => ${kindOrdinal}\n`,
+          );
+        }
+        kindOrdinal = kindOrdinal + 1;
+      }
+      out.push("      }\n");
+      out.push("    },\n");
+      out.push(
+        `    fn(value : @client.UnrecognizedVariant[${typeName}]) { ${typeName}::Unknown(value) },\n`,
+      );
+      out.push(`    fn(input : ${typeName}) {\n`);
+      out.push("      match input {\n");
+      out.push(`        ${typeName}::Unknown(value) => Some(value)\n`);
+      out.push("        _ => None\n");
+      out.push("      }\n");
+      out.push("    },\n");
+      out.push("  )\n");
+      for (const line of addVariantLines) {
+        out.push(`  ${line.replace(adapterVarName, "adapter")}\n`);
+      }
+      for (const number of removedNumbers) {
+        out.push(`  adapter.add_removed_number(${number})\n`);
+      }
+      out.push("  adapter.finalize()\n");
+      out.push("  adapter\n");
+      out.push("}\n\n");
+
+      out.push(
+        `let ${adapterVarName} : @runtime.EnumAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
+      );
+    }
+
+    out.push(
+      `pub fn ${typeName}::serializer() -> @runtime.Serializer[${typeName}] {\n`,
+    );
+    out.push(`  ${adapterVarName}.serializer()\n`);
     out.push("}\n\n");
 
     if (this.keyedArrayContext.isEnumUsedAsKey(record.record)) {
@@ -273,7 +535,120 @@ class MoonbitSourceFileGenerator {
     return fields.filter((field) => field.name.text !== "removed");
   }
 
+  private getRemovedNumbers(fields: readonly Field[]): number[] {
+    return fields
+      .filter((field) => field.name.text === "removed")
+      .map((field) => field.number);
+  }
+
+  private isRecursiveRecord(fields: readonly Field[]): boolean {
+    return !fields.every((field) => !field.isRecursive);
+  }
+
+  private getRecordNamespace(): string {
+    return this.inModule.path.replace(/\.skir$/, "").replace(/\//g, ".");
+  }
+
+  private toMoonbitStringLiteral(value: string): string {
+    return JSON.stringify(value);
+  }
+
+  private getSerializerExpr(type: ResolvedType): string {
+    switch (type.kind) {
+      case "primitive": {
+        switch (type.primitive) {
+          case "bool":
+            return "@runtime.bool_serializer()";
+          case "int32":
+            return "@runtime.int32_serializer()";
+          case "int64":
+            return "@runtime.int64_serializer()";
+          case "hash64":
+            return "@runtime.hash64_serializer()";
+          case "float32":
+            return "@runtime.float32_serializer()";
+          case "float64":
+            return "@runtime.float64_serializer()";
+          case "timestamp":
+            return "@runtime.timestamp_serializer()";
+          case "string":
+            return "@runtime.string_serializer()";
+          case "bytes":
+            return "@runtime.bytes_serializer()";
+        }
+        throw new Error(`Unsupported primitive serializer: ${type.primitive}`);
+      }
+      case "optional":
+        return `@runtime.optional_serializer(${this.getSerializerExpr(type.other)})`;
+      case "array":
+        return `@runtime.vector_serializer(${this.getSerializerExpr(type.item)})`;
+      case "record": {
+        const recordLocation = this.typeSpeller.recordMap.get(type.key)!;
+        const recordTypeName = getTypeName(recordLocation);
+        if (recordLocation.modulePath === this.inModule.path) {
+          return `${recordTypeName}::serializer()`;
+        }
+        return `@${modulePathToAlias(recordLocation.modulePath)}.${recordTypeName}::serializer()`;
+      }
+    }
+  }
+
+  private getStructAddFieldLines(
+    typeName: string,
+    adapterVarName: string,
+    allFields: readonly Field[],
+    field: Field,
+  ): string[] {
+    const fieldName = toStructFieldName(field.name.text);
+    const resolvedType = field.type!;
+    const isKeyedArrayField =
+      resolvedType.kind === "array" &&
+      !!resolvedType.key &&
+      keyTypeIsSupported(resolvedType.key.keyType);
+
+    const serializerExpr =
+      field.isRecursive === "hard"
+        ? `@runtime.recursive_serializer(${this.getSerializerExpr(resolvedType)})`
+        : this.getSerializerExpr(resolvedType);
+
+    const normalFieldType = this.typeSpeller.getMoonbitFieldType(field);
+    let setterValueType = normalFieldType;
+    let getterExpr = `input.${fieldName}`;
+    let setterExpr = "value";
+    if (isKeyedArrayField) {
+      const itemType = this.typeSpeller.getMoonbitType(resolvedType.item);
+      const wrapperType = this.typeSpeller.getMoonbitType(resolvedType);
+      setterValueType = `@client.Vector[${itemType}]`;
+      getterExpr = `input.${fieldName}.vector()`;
+      setterExpr = `${wrapperType}::new(value)`;
+    }
+
+    const lines: string[] = [];
+    lines.push(`${adapterVarName}.add_field(`);
+    lines.push(`  ${this.toMoonbitStringLiteral(field.name.text)},`);
+    lines.push(`  ${field.number},`);
+    lines.push(`  ${serializerExpr},`);
+    lines.push(`  fn(input : ${typeName}) { ${getterExpr} },`);
+    lines.push(`  fn(input : ${typeName}, value : ${setterValueType}) {`);
+    lines.push("    {");
+    for (const currentField of allFields) {
+      const currentFieldName = toStructFieldName(currentField.name.text);
+      if (currentFieldName === fieldName) {
+        lines.push(`      ${currentFieldName}: ${setterExpr},`);
+      } else {
+        lines.push(`      ${currentFieldName}: input.${currentFieldName},`);
+      }
+    }
+    lines.push("      _unrecognized: input._unrecognized,");
+    lines.push("    }");
+    lines.push("  },");
+    lines.push('  "",');
+    lines.push(")");
+    return lines;
+  }
+
   private readonly typeSpeller: TypeSpeller;
+  private readonly initStatements: string[] = [];
 }
 
 export const GENERATOR = new MoonbitCodeGenerator();
@@ -281,6 +656,7 @@ export const GENERATOR = new MoonbitCodeGenerator();
 function generateMoonPkg(module: Module): string {
   const imports: string[] = [];
   imports.push(`  "${CLIENT_PACKAGE_PATH}" @client,`);
+  imports.push(`  "${CLIENT_RUNTIME_PACKAGE_PATH}" @runtime,`);
   imports.push(`  "moonbitlang/core/builtin" @builtin,`);
   imports.push(`  "moonbitlang/core/debug" @debug,`);
 
@@ -304,3 +680,4 @@ function shouldImportModule(importedNames: ImportedNames): boolean {
 
 const SKIROUT_PACKAGE_PREFIX = "skir/e2e-tests/skirout";
 const CLIENT_PACKAGE_PATH = "skir/e2e-tests/client/types";
+const CLIENT_RUNTIME_PACKAGE_PATH = "skir/e2e-tests/client";
