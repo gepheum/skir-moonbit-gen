@@ -162,6 +162,29 @@ class MoonbitSourceFileGenerator {
     out.push("  }\n");
     out.push("}\n\n");
 
+    out.push(`pub fn ${typeName}::partial(`);
+    if (fields.length > 0) {
+      out.push("\n");
+      for (const field of fields) {
+        const fieldName = toStructFieldName(field.name.text);
+        const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
+        const defaultValue = this.typeSpeller.getMoonbitFieldDefault(field);
+        out.push(`  ${fieldName}~ : ${moonbitType}=${defaultValue},\n`);
+      }
+    }
+    out.push(`) -> ${typeName} {\n`);
+    if (fields.length === 0) {
+      out.push(`  ${typeName}::new()\n`);
+    } else {
+      out.push(`  ${typeName}::new(\n`);
+      for (const field of fields) {
+        const fieldName = toStructFieldName(field.name.text);
+        out.push(`    ${fieldName},\n`);
+      }
+      out.push("  )\n");
+    }
+    out.push("}\n\n");
+
     out.push(`pub fn ${typeName}::copy(\n`);
     out.push(`  ${copySelfName} : ${typeName},\n`);
     for (const field of fields) {
