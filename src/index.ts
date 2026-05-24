@@ -364,7 +364,9 @@ class MoonbitSourceFileGenerator {
       out.push(`  fn(input : ${typeName}) {\n`);
       out.push("    match input {\n");
       out.push(`      ${typeName}::Unknown(value) => Some(value)\n`);
-      out.push("      _ => None\n");
+      if (variantNames.length > 0) {
+        out.push("      _ => None\n");
+      }
       out.push("    }\n");
       out.push("  },\n");
       out.push(")\n\n");
@@ -412,7 +414,9 @@ class MoonbitSourceFileGenerator {
       out.push(`    fn(input : ${typeName}) {\n`);
       out.push("      match input {\n");
       out.push(`        ${typeName}::Unknown(value) => Some(value)\n`);
-      out.push("        _ => None\n");
+      if (variantNames.length > 0) {
+        out.push("        _ => None\n");
+      }
       out.push("      }\n");
       out.push("    },\n");
       out.push("  )\n");
