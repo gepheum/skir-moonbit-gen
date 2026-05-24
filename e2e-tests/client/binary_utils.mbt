@@ -66,3 +66,11 @@ fn InputStream::peek_int(self : InputStream) -> Result[Int, String] {
     None => Err("unexpected end of input")
   }
 }
+
+fn InputStream::remaining_int_array(self : InputStream) -> Array[Int] {
+  let out : Array[Int] = []
+  for i in self.offset..<self.bytes.length() {
+    out.push(self.bytes[i].to_int())
+  }
+  out
+}
