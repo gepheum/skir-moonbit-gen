@@ -1,20 +1,20 @@
 pub(all) struct KeyedVectorSpec[T, K] {
   get_key : (T) -> K
-  key_extractor : () -> String
-  default_item : () -> T
+  key_extractor : String
+  default_item : T
 }
 
 pub struct KeyedVector[T, K] {
-  items : @immut_vector.Vector[T]
-  spec : KeyedVectorSpec[T, K]
-  mut index : @hashmap.HashMap[K, T]?
+  vector : @immut_vector.Vector[T]
+  priv spec : KeyedVectorSpec[T, K]
+  priv mut index : @hashmap.HashMap[K, T]?
 }
 
 pub fn[T, K] KeyedVector::new(
-  items : @immut_vector.Vector[T],
+  vector : @immut_vector.Vector[T],
   spec : KeyedVectorSpec[T, K],
 ) -> KeyedVector[T, K] {
-  { items, spec, index: None }
+  { vector, spec, index: None }
 }
 
 pub fn[T, K] KeyedVector::from_array(
@@ -24,16 +24,8 @@ pub fn[T, K] KeyedVector::from_array(
   KeyedVector::new(@immut_vector.Vector::from_array(items), spec)
 }
 
-pub fn[T, K] KeyedVector::items(self : KeyedVector[T, K]) -> @immut_vector.Vector[T] {
-  self.items
-}
-
-pub fn[T, K] KeyedVector::length(self : KeyedVector[T, K]) -> Int {
-  self.items.length()
-}
-
-pub fn[T, K] KeyedVector::is_empty(self : KeyedVector[T, K]) -> Bool {
-  self.items.is_empty()
+pub fn[T, K] KeyedVector::empty(spec : KeyedVectorSpec[T, K]) -> KeyedVector[T, K] {
+  KeyedVector::new(@immut_vector.Vector::new(), spec)
 }
 
 fn[T, K] KeyedVector::has_index(self : KeyedVector[T, K]) -> Bool {
@@ -44,8 +36,8 @@ fn[T, K] KeyedVector::has_index(self : KeyedVector[T, K]) -> Bool {
 }
 
 fn[T, K : Hash + Eq] KeyedVector::build_index(self : KeyedVector[T, K]) -> @hashmap.HashMap[K, T] {
-  let index : @hashmap.HashMap[K, T] = @hashmap.HashMap([], capacity=self.length())
-  for item in self.items.iter() {
+  let index : @hashmap.HashMap[K, T] = @hashmap.HashMap([], capacity=self.vector.length())
+  for item in self.vector.iter() {
     let key = (self.spec.get_key)(item)
     // Keep first occurrence for duplicate keys.
     if !index.contains(key) {
@@ -77,7 +69,7 @@ pub fn[T, K : Hash + Eq] KeyedVector::find_by_key_or_default(
 ) -> T {
   match self.find_by_key(key) {
     Some(v) => v
-    None => (self.spec.default_item)()
+    None => self.spec.default_item
   }
 }
 
@@ -89,8 +81,8 @@ priv struct MockItem {
 fn mock_spec() -> KeyedVectorSpec[MockItem, String] {
   KeyedVectorSpec::{
     get_key: fn(item : MockItem) { item.key },
-    key_extractor: fn() { "key" },
-    default_item: fn() { { key: "", value: 0 } },
+    key_extractor: "key",
+    default_item: { key: "", value: 0 },
   }
 }
 
