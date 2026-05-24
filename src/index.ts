@@ -2,6 +2,7 @@
 // TODO: optional serializer
 // TODO: add default values...
 // TODO: make them comparable, renderable, etc.
+// TODO: make sure thta pre_commit.sh formats
 
 import {
   type CodeGenerator,

@@ -1087,10 +1087,10 @@ pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
 
 pub fn[T] array_serializer(
   item_serializer : Serializer[T]
-) -> Serializer[@immut_array.T[T]] {
+) -> Serializer[@immut_vector.Vector[T]] {
   new_serializer({
-    is_default: fn(input : @immut_array.T[T]) { input.is_empty() },
-    to_dense_json: fn(input : @immut_array.T[T], builder : StringBuilder) {
+    is_default: fn(input : @immut_vector.Vector[T]) { input.is_empty() },
+    to_dense_json: fn(input : @immut_vector.Vector[T], builder : StringBuilder) {
       builder.write_char('[')
       let mut i = 0
       for item in input.iter() {
@@ -1102,7 +1102,7 @@ pub fn[T] array_serializer(
       }
       builder.write_char(']')
     },
-    to_readable_json: fn(input : @immut_array.T[T]) {
+    to_readable_json: fn(input : @immut_vector.Vector[T]) {
       let builder = StringBuilder()
       builder.write_char('[')
       let mut i = 0
@@ -1126,12 +1126,12 @@ pub fn[T] array_serializer(
               Err(e) => return Err(e)
             }
           }
-          Ok(@immut_array.T::from_array(out))
+          Ok(@immut_vector.Vector::from_array(out))
         }
-        _ => Ok(@immut_array.T::new())
+        _ => Ok(@immut_vector.Vector::new())
       }
     },
-    encode: fn(input : @immut_array.T[T], out : OutputStream) {
+    encode: fn(input : @immut_vector.Vector[T], out : OutputStream) {
       let n = input.length()
       let mut cur = out
       if n <= 3 {
@@ -1148,7 +1148,7 @@ pub fn[T] array_serializer(
       match input.read_int() {
         Ok((wire, rest)) => {
           if wire == 0 || wire == 246 {
-            return Ok((@immut_array.T::new(), rest))
+            return Ok((@immut_vector.Vector::new(), rest))
           }
           let mut cur = rest
           let n =
@@ -1165,17 +1165,17 @@ pub fn[T] array_serializer(
             } else {
               return Err("expected array")
             }
-            let out : Array[T] = []
+          let out : Array[T] = []
           for _ in 0..<n {
             match (item_serializer.adapter.decode)(cur, policy) {
               Ok((item, next)) => {
-                  out.push(item)
+                out.push(item)
                 cur = next
               }
               Err(e) => return Err(e)
             }
           }
-            Ok((@immut_array.T::from_array(out), cur))
+          Ok((@immut_vector.Vector::from_array(out), cur))
         }
         Err(e) => Err(e)
       }
@@ -1193,8 +1193,8 @@ pub fn[T] array_serializer(
   })
 }
 
-fn[T] immut_from_array(items : Array[T]) -> @immut_array.T[T] {
-  @immut_array.T::from_array(items)
+fn[T] immut_from_array(items : Array[T]) -> @immut_vector.Vector[T] {
+  @immut_vector.Vector::from_array(items)
 }
 
 fn expect_ok_bool(r : Result[Bool, String]) -> Bool {
@@ -1254,8 +1254,8 @@ fn expect_ok_optional_int(r : Result[Int?, String]) -> Int? {
 }
 
 fn expect_ok_immut_int_array(
-  r : Result[@immut_array.T[Int], String]
-) -> @immut_array.T[Int] {
+  r : Result[@immut_vector.Vector[Int], String]
+) -> @immut_vector.Vector[Int] {
   match r {
     Ok(v) => v
     Err(_) => panic()
@@ -1529,19 +1529,19 @@ test "array_from_json_null_is_empty" {
   let s = array_serializer(int32_serializer())
   assert_eq(
     expect_ok_immut_int_array(s.from_json("null", UnrecognizedValues::Drop)),
-    @immut_array.T::new(),
+    @immut_vector.Vector::new(),
   )
 }
 
 test "array_encode_empty_is_wire_246" {
   let s = array_serializer(int32_serializer())
-  assert_eq(s.to_bytes(@immut_array.T::new()), [115, 107, 105, 114, 246])
+  assert_eq(s.to_bytes(@immut_vector.Vector::new()), [115, 107, 105, 114, 246])
 }
 
 test "array_binary_round_trip" {
   let s = array_serializer(int32_serializer())
   for v in [
-    @immut_array.T::new(),
+    @immut_vector.Vector::new(),
     immut_from_array([0]),
     immut_from_array([1, 2, 3]),
     immut_from_array([-1, 0, 1]),
