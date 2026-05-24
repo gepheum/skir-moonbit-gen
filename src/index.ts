@@ -1,4 +1,3 @@
-// TODO: make sure that pre_commit.sh formats
 // TODO: make Serializer.adapter private?
 // TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
 // TODO: remove UnrecognizedValues enum, use named parameter for bool
@@ -196,8 +195,24 @@ class MoonbitSourceFileGenerator {
         );
       }
       this.initStatements.push(`${adapterVarName}.finalize()`);
+
+      out.push(
+        `pub fn ${typeName}::serializer() -> @runtime.Serializer[${typeName}] {\n`,
+      );
+      out.push(`  ${adapterVarName}.serializer()\n`);
+      out.push("}\n\n");
     } else {
       const adapterInitFnName = `${adapterVarName}__init`;
+      out.push(
+        `pub fn ${typeName}::serializer() -> @runtime.Serializer[${typeName}] {\n`,
+      );
+      out.push(`  ${adapterVarName}.serializer()\n`);
+      out.push("}\n\n");
+
+      out.push(
+        `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
+      );
+
       out.push(
         `fn ${adapterInitFnName}() -> @runtime.StructAdapter[${typeName}] {\n`,
       );
@@ -229,17 +244,7 @@ class MoonbitSourceFileGenerator {
       out.push("  adapter.finalize()\n");
       out.push("  adapter\n");
       out.push("}\n\n");
-
-      out.push(
-        `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
-      );
     }
-
-    out.push(
-      `pub fn ${typeName}::serializer() -> @runtime.Serializer[${typeName}] {\n`,
-    );
-    out.push(`  ${adapterVarName}.serializer()\n`);
-    out.push("}\n\n");
 
     this.writeKeyedVectorWrappers(record, typeName, out);
   }
