@@ -150,4 +150,9 @@ struct String {
   s: string;
 }
 
-struct Float {}
+struct Float {
+  derive: float32;
+}
+
+struct Eq {}
+struct Hash {}

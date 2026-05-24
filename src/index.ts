@@ -173,7 +173,7 @@ class MoonbitSourceFileGenerator {
       for (const variant of variantNames) {
         out.push(`  ${variant.variantName}\n`);
       }
-      out.push("}\n\n");
+      out.push("} derive(Eq, Hash)\n\n");
 
       out.push(
         `pub fn ${typeName}::kind(self : ${typeName}) -> ${typeName}_kind {\n`,
@@ -220,10 +220,18 @@ class MoonbitSourceFileGenerator {
       out.push(`  default_item: ${typeName}::default(),\n`);
       out.push("}\n\n");
 
-      out.push(`pub(all) struct ${wrapperTypeName} {\n`);
+      const methodSuffix = keySpec.keyExtractor.replace(/\./g, "_");
+
+      out.push(`pub struct ${wrapperTypeName} {\n`);
       out.push(
-        `  vector : @client.KeyedVector[${typeName}, ${keySpec.moonbitKeyType}]\n`,
+        `  priv vector : @client.KeyedVector[${typeName}, ${keySpec.moonbitKeyType}]\n`,
       );
+      out.push("}\n\n");
+
+      out.push(
+        `pub fn ${wrapperTypeName}::vector(self : ${wrapperTypeName}) -> @client.Vector[${typeName}] {\n`,
+      );
+      out.push("  self.vector.vector\n");
       out.push("}\n\n");
 
       out.push(
@@ -244,6 +252,18 @@ class MoonbitSourceFileGenerator {
 
       out.push(`pub fn ${wrapperTypeName}::empty() -> ${wrapperTypeName} {\n`);
       out.push(`  { vector: @client.KeyedVector::empty(${specVarName}) }\n`);
+      out.push("}\n\n");
+
+      out.push(
+        `pub fn ${wrapperTypeName}::find_by_${methodSuffix}(self : ${wrapperTypeName}, key : ${keySpec.moonbitKeyType}) -> ${typeName}? {\n`,
+      );
+      out.push("  self.vector.find_by_key(key)\n");
+      out.push("}\n\n");
+
+      out.push(
+        `pub fn ${wrapperTypeName}::find_by_${methodSuffix}_or_default(self : ${wrapperTypeName}, key : ${keySpec.moonbitKeyType}) -> ${typeName} {\n`,
+      );
+      out.push("  self.vector.find_by_key_or_default(key)\n");
       out.push("}\n\n");
     }
   }

@@ -1,5 +1,5 @@
 pub struct Timestamp {
-  unix_millis : Int64
+  priv unix_millis : Int64
 }
 
 let min_timestamp_millis : Int64 = -8640000000000000L
@@ -134,6 +134,10 @@ pub fn Timestamp::to_iso8601(self : Timestamp) -> String {
 
 pub impl Eq for Timestamp with equal(self, other) {
   self.unix_millis == other.unix_millis
+}
+
+pub impl Hash for Timestamp with hash_combine(self, hasher) {
+  self.unix_millis.hash_combine(hasher)
 }
 
 pub impl Compare for Timestamp with compare(self, other) {
