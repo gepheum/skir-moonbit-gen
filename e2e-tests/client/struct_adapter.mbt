@@ -23,7 +23,7 @@ pub struct StructAdapter[T] {
   priv removed_numbers : Array[Int]
 }
 
-pub fn[T] struct_adapter_new(
+pub fn[T] StructAdapter::new(
   module_path : String,
   qualified_name : String,
   doc : String,

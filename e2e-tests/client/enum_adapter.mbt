@@ -29,7 +29,7 @@ pub struct EnumAdapter[T] {
   priv desc_variants : Array[EnumVariant]
 }
 
-pub fn[T] enum_adapter_new(
+pub fn[T] EnumAdapter::new(
   module_path : String,
   qualified_name : String,
   doc : String,

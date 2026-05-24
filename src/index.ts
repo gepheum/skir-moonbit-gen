@@ -4,6 +4,7 @@
 // TODO: make them comparable, renderable, etc.
 // TODO: KeyedArray...
 // TODO: rm recursive_default, unrecognized_variant_default, timestamp_defaultake Timestamp much better...
+// TODO: move things like StructAdapter to internal...?
 
 import {
   type CodeGenerator,
@@ -170,7 +171,7 @@ class MoonbitSourceFileGenerator {
 
     if (isRecursive) {
       out.push(
-        `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = @runtime.struct_adapter_new(\n`,
+        `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = @runtime.StructAdapter::new(\n`,
       );
       out.push(`  ${moduleName},\n`);
       out.push(`  ${typeNameLiteral},\n`);
@@ -216,7 +217,7 @@ class MoonbitSourceFileGenerator {
       out.push(
         `fn ${adapterInitFnName}() -> @runtime.StructAdapter[${typeName}] {\n`,
       );
-      out.push("  let adapter = @runtime.struct_adapter_new(\n");
+      out.push("  let adapter = @runtime.StructAdapter::new(\n");
       out.push(`    ${moduleName},\n`);
       out.push(`    ${typeNameLiteral},\n`);
       out.push('    "",\n');
@@ -334,7 +335,7 @@ class MoonbitSourceFileGenerator {
 
     if (isRecursive) {
       out.push(
-        `let ${adapterVarName} : @runtime.EnumAdapter[${typeName}] = @runtime.enum_adapter_new(\n`,
+        `let ${adapterVarName} : @runtime.EnumAdapter[${typeName}] = @runtime.EnumAdapter::new(\n`,
       );
       out.push(`  ${moduleName},\n`);
       out.push(`  ${typeNameLiteral},\n`);
@@ -385,7 +386,7 @@ class MoonbitSourceFileGenerator {
       out.push(
         `fn ${adapterInitFnName}() -> @runtime.EnumAdapter[${typeName}] {\n`,
       );
-      out.push("  let adapter = @runtime.enum_adapter_new(\n");
+      out.push("  let adapter = @runtime.EnumAdapter::new(\n");
       out.push(`    ${moduleName},\n`);
       out.push(`    ${typeNameLiteral},\n`);
       out.push('    "",\n');
