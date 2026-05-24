@@ -17,9 +17,18 @@ pub type UnrecognizedFields[T] = @runtime.UnrecognizedFields[T]
 pub type UnrecognizedVariant[T] = @runtime.UnrecognizedVariant[T]
 pub type KeyedVectorSpec[T, K] = @runtime.KeyedVectorSpec[T, K]
 pub type KeyedVector[T, K] = @runtime.KeyedVector[T, K]
+pub type KeepOrSet[T] = @runtime.KeepOrSet[T]
 
 pub fn[T] recursive_default() -> Recursive[T] {
 	@runtime.recursive_default()
+}
+
+pub fn[T] keep_or_set_keep() -> KeepOrSet[T] {
+	@runtime.keep_or_set_keep()
+}
+
+pub fn[T] keep_or_set_set(value : T) -> KeepOrSet[T] {
+	@runtime.keep_or_set_set(value)
 }
 
 pub fn[T] unrecognized_variant_default() -> UnrecognizedVariant[T] {

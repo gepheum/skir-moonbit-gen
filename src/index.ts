@@ -124,6 +124,13 @@ class MoonbitSourceFileGenerator {
     const isRecursive = this.isRecursiveRecord(fields);
     const moduleName = this.toMoonbitStringLiteral(this.getRecordNamespace());
     const typeNameLiteral = this.toMoonbitStringLiteral(typeName);
+    const structFieldNames = fields.map((field) =>
+      toStructFieldName(field.name.text),
+    );
+    let copySelfName = "self";
+    while (structFieldNames.includes(copySelfName)) {
+      copySelfName = `${copySelfName}_`;
+    }
 
     out.push(`pub struct ${typeName} {\n`);
     for (const field of fields) {
@@ -152,6 +159,29 @@ class MoonbitSourceFileGenerator {
       out.push(`    ${fieldName},\n`);
     }
     out.push("    _unrecognized: None,\n");
+    out.push("  }\n");
+    out.push("}\n\n");
+
+    out.push(`pub fn ${typeName}::copy(\n`);
+    out.push(`  ${copySelfName} : ${typeName},\n`);
+    for (const field of fields) {
+      const fieldName = toStructFieldName(field.name.text);
+      const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
+      out.push(
+        `  ${fieldName}~ : @client.KeepOrSet[${moonbitType}]=@client.keep_or_set_keep(),\n`,
+      );
+    }
+    out.push(`) -> ${typeName} {\n`);
+    out.push("  {\n");
+    for (const field of fields) {
+      const fieldName = toStructFieldName(field.name.text);
+      out.push(`    ${fieldName}: match ${fieldName} {\n`);
+      out.push(`      @client.KeepOrSet::Keep => ${copySelfName}.`);
+      out.push(`${fieldName}\n`);
+      out.push("      @client.KeepOrSet::Set(value) => value\n");
+      out.push("    },\n");
+    }
+    out.push(`    _unrecognized: ${copySelfName}._unrecognized,\n`);
     out.push("  }\n");
     out.push("}\n\n");
 
