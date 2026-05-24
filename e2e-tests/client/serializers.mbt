@@ -546,17 +546,6 @@ fn decode_number_body(wire : Int, input : InputStream) -> Result[(Int64, InputSt
   }
 }
 
-fn decode_number(input : InputStream) -> Result[Int64, String] {
-  match input.read_int() {
-    Ok((wire, rest)) =>
-      match decode_number_body(wire, rest) {
-        Ok((v, _tail)) => Ok(v)
-        Err(e) => Err(e)
-      }
-    Err(e) => Err(e)
-  }
-}
-
 fn parse_double_or_zero(s : String) -> Double {
   try {
     @string.parse_double(s)
@@ -658,17 +647,6 @@ fn decode_number_as_double_body(
         Err(e) => Err(e)
       }
     _ => Ok((0.0, input))
-  }
-}
-
-fn decode_number_as_double(input : InputStream) -> Result[Double, String] {
-  match input.read_int() {
-    Ok((wire, rest)) =>
-      match decode_number_as_double_body(wire, rest) {
-        Ok((v, _tail)) => Ok(v)
-        Err(e) => Err(e)
-      }
-    Err(e) => Err(e)
   }
 }
 
