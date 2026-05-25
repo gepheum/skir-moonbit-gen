@@ -4,5 +4,7 @@ import {
 	"moonbitlang/core/json" @json,
 	"moonbitlang/core/immut/vector" @immut_vector,
 	"skir/e2e-tests/client" @client,
+	"skir/e2e-tests/skirout/full_name" @full_name,
+	"skir/e2e-tests/skirout/methods" @methods,
 	"skir/e2e-tests/skirout/@gepheum/skir-golden-tests/goldens" @goldens,
 }
