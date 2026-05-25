@@ -1,5 +1,5 @@
 // TODO: add comments to Serializer
-// TODO: make TypeDescriptor read-only
+// TODO: make Method pub instead of pub(all) so it's readonly...
 // TODO: generate doc for client...
 // TODO: add unit tests
 // TODO: organize client lib...
@@ -148,7 +148,10 @@ class MoonbitSourceFileGenerator {
     const fields = record.record.fields;
     const removedNumbers = record.record.removedNumbers;
     const typeName = this.getTypeName(record);
+    const mutableTypeName = `${typeName}_mutable`;
     const adapterVarName = `${typeName.toLowerCase()}__adapter`;
+    const newMutableFnName = `${typeName.toLowerCase()}__new_mutable`;
+    const toFrozenFnName = `${typeName.toLowerCase()}__to_frozen`;
     const isRecursive = this.isRecursiveRecord(fields);
     const recordIdLiteral = this.toMoonbitStringLiteral(
       `${record.modulePath}:${record.recordAncestors.map((ancestor) => ancestor.name.text).join(".")}`,
@@ -168,9 +171,9 @@ class MoonbitSourceFileGenerator {
     for (const field of fields) {
       const fieldName = toStructFieldName(field.name.text);
       const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
-      out.push(`  mut ${fieldName} : ${moonbitType}\n`);
+      out.push(`  ${fieldName} : ${moonbitType}\n`);
     }
-    out.push("  priv mut _unrecognized : @client.UnrecognizedFields?\n");
+    out.push("  priv _unrecognized : @client.UnrecognizedFields?\n");
     out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
     out.push(`pub fn ${typeName}::new(`);
@@ -252,17 +255,58 @@ class MoonbitSourceFileGenerator {
     }
     out.push("}\n\n");
 
+    out.push(
+      `pub fn ${typeName}::serializer() -> @client.Serializer[${typeName}] {\n`,
+    );
+    out.push(`  ${adapterVarName}.serializer()\n`);
+    out.push("}\n\n");
+
+    out.push(`priv struct ${mutableTypeName} {\n`);
+    for (const field of fields) {
+      const fieldName = toStructFieldName(field.name.text);
+      const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
+      out.push(`  mut ${fieldName} : ${moonbitType}\n`);
+    }
+    out.push("  mut _unrecognized : @client.UnrecognizedFields?\n");
+    out.push("}\n\n");
+
+    out.push(`fn ${newMutableFnName}() -> ${mutableTypeName} {\n`);
+    out.push("  {\n");
+    for (const field of fields) {
+      const fieldName = toStructFieldName(field.name.text);
+      const defaultValue = this.typeSpeller.getMoonbitFieldDefault(field);
+      out.push(`    ${fieldName}: ${defaultValue},\n`);
+    }
+    out.push("    _unrecognized: None,\n");
+    out.push("  }\n");
+    out.push("}\n\n");
+
+    out.push(
+      `fn ${toFrozenFnName}(input : ${mutableTypeName}) -> ${typeName} {\n`,
+    );
+    out.push("  {\n");
+    for (const field of fields) {
+      const fieldName = toStructFieldName(field.name.text);
+      out.push(`    ${fieldName}: input.${fieldName},\n`);
+    }
+    out.push("    _unrecognized: input._unrecognized,\n");
+    out.push("  }\n");
+    out.push("}\n\n");
+
     if (isRecursive) {
       out.push(
-        `let ${adapterVarName} : @client.Internal_StructAdapter[${typeName}] = @client.Internal_StructAdapter::new(\n`,
+        `let ${adapterVarName} : @client.Internal_StructAdapter[${typeName}, ${mutableTypeName}] = @client.Internal_StructAdapter::new(\n`,
       );
       out.push(`  ${recordIdLiteral},\n`);
       out.push('  "",\n');
       out.push(`  ${recordDocLiteral},\n`);
-      out.push(`  fn() { ${typeName}::default() },\n`);
+      out.push(`  fn() { ${newMutableFnName}() },\n`);
+      out.push(
+        `  fn(input : ${mutableTypeName}) { ${toFrozenFnName}(input) },\n`,
+      );
       out.push(`  fn(input : ${typeName}) { input._unrecognized },\n`);
       out.push(
-        `  fn(input : ${typeName}, value : @client.UnrecognizedFields?) {\n`,
+        `  fn(input : ${mutableTypeName}, value : @client.UnrecognizedFields?) {\n`,
       );
       out.push("    input._unrecognized = value\n");
       out.push("  },\n");
@@ -270,7 +314,12 @@ class MoonbitSourceFileGenerator {
 
       for (const field of fields) {
         this.initStatements.push(
-          ...this.getStructAddFieldLines(typeName, adapterVarName, field),
+          ...this.getStructAddFieldLines(
+            typeName,
+            mutableTypeName,
+            adapterVarName,
+            field,
+          ),
         );
       }
       for (const number of removedNumbers) {
@@ -279,35 +328,26 @@ class MoonbitSourceFileGenerator {
         );
       }
       this.initStatements.push(`${adapterVarName}.finalize()`);
-
-      out.push(
-        `pub fn ${typeName}::serializer() -> @client.Serializer[${typeName}] {\n`,
-      );
-      out.push(`  ${adapterVarName}.serializer()\n`);
-      out.push("}\n\n");
     } else {
       const adapterInitFnName = `${adapterVarName}__init`;
       out.push(
-        `pub fn ${typeName}::serializer() -> @client.Serializer[${typeName}] {\n`,
-      );
-      out.push(`  ${adapterVarName}.serializer()\n`);
-      out.push("}\n\n");
-
-      out.push(
-        `let ${adapterVarName} : @client.Internal_StructAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
+        `let ${adapterVarName} : @client.Internal_StructAdapter[${typeName}, ${mutableTypeName}] = ${adapterInitFnName}()\n\n`,
       );
 
       out.push(
-        `fn ${adapterInitFnName}() -> @client.Internal_StructAdapter[${typeName}] {\n`,
+        `fn ${adapterInitFnName}() -> @client.Internal_StructAdapter[${typeName}, ${mutableTypeName}] {\n`,
       );
       out.push("  let adapter = @client.Internal_StructAdapter::new(\n");
       out.push(`    ${recordIdLiteral},\n`);
       out.push('    "",\n');
       out.push(`    ${recordDocLiteral},\n`);
-      out.push(`    fn() { ${typeName}::default() },\n`);
+      out.push(`    fn() { ${newMutableFnName}() },\n`);
+      out.push(
+        `    fn(input : ${mutableTypeName}) { ${toFrozenFnName}(input) },\n`,
+      );
       out.push(`    fn(input : ${typeName}) { input._unrecognized },\n`);
       out.push(
-        `    fn(input : ${typeName}, value : @client.UnrecognizedFields?) {\n`,
+        `    fn(input : ${mutableTypeName}, value : @client.UnrecognizedFields?) {\n`,
       );
       out.push("      input._unrecognized = value\n");
       out.push("    },\n");
@@ -316,6 +356,7 @@ class MoonbitSourceFileGenerator {
       for (const field of fields) {
         for (const line of this.getStructAddFieldLines(
           typeName,
+          mutableTypeName,
           "adapter",
           field,
         )) {
@@ -671,6 +712,7 @@ class MoonbitSourceFileGenerator {
 
   private getStructAddFieldLines(
     typeName: string,
+    mutableTypeName: string,
     adapterVarName: string,
     field: Field,
   ): string[] {
@@ -706,7 +748,9 @@ class MoonbitSourceFileGenerator {
     lines.push(`  ${field.number},`);
     lines.push(`  ${serializerExpr},`);
     lines.push(`  fn(input : ${typeName}) { ${getterExpr} },`);
-    lines.push(`  fn(input : ${typeName}, value : ${setterValueType}) {`);
+    lines.push(
+      `  fn(input : ${mutableTypeName}, value : ${setterValueType}) {`,
+    );
     lines.push(`    input.${fieldName} = ${setterExpr}`);
     lines.push("  },");
     lines.push(
