@@ -93,7 +93,7 @@ pub fn[T] EnumAdapter::add_constant_variant(
       out.write_string(number.to_string())
     },
     variant_to_readable_json: fn(_input : T) {
-      Json::string(number.to_string())
+      Json::string(name)
     },
     encode_value: fn(_input : T, out0 : OutputStream) {
       let out = out0
@@ -126,7 +126,7 @@ pub fn[T, V] EnumAdapter::add_wrapper_variant(
   let entry : EnumVariantEntry[T] = {
     constant: fn() { None },
     wrapper_default: fn() {
-      match (serializer.from_json)("0", UnrecognizedValues::Drop) {
+      match (serializer.from_json)(parse_json("0"), UnrecognizedValues::Drop) {
         Ok(v) => wrap(v)
         Err(_) => self.default_value
       }

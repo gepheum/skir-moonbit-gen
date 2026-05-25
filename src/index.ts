@@ -1,4 +1,6 @@
 // TODO: generate doc for client...
+// TODO: rename keep_or_set_keep
+//   TODO: use pub(all)
 // TODO: add unit tests
 // TODO: make Serializer.adapter private?
 // TODO: organize client lib...
