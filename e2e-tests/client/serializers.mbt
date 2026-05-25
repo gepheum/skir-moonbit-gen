@@ -1,3 +1,7 @@
+/// Returns a serializer for booleans.
+///
+/// Dense JSON uses numeric `0`/`1` for compactness, while readable JSON uses
+/// `false`/`true`.
 pub fn bool_serializer() -> Serializer[Bool] {
   new_serializer({
     is_default: fn(input : Bool) { !input },
@@ -32,7 +36,7 @@ pub fn bool_serializer() -> Serializer[Bool] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Bool),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
@@ -159,6 +163,10 @@ fn bytes_to_hex_string(bytes : Bytes) -> String {
   builder.to_string()
 }
 
+/// Returns a serializer for UTF-8 strings.
+///
+/// Binary encoding preserves the raw UTF-8 bytes; invalid UTF-8 payloads are
+/// rejected during binary decoding.
 pub fn string_serializer() -> Serializer[String] {
   new_serializer({
     is_default: fn(input : String) { input == "" },
@@ -212,12 +220,16 @@ pub fn string_serializer() -> Serializer[String] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::String),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
 }
 
+/// Returns a serializer for byte strings.
+///
+/// Dense JSON uses Base64 strings. Readable JSON uses the explicit `"hex:"`
+/// textual form to make snapshots easier to diff.
 pub fn bytes_serializer() -> Serializer[Bytes] {
   new_serializer({
     is_default: fn(input : Bytes) { input.is_empty() },
@@ -293,7 +305,7 @@ pub fn bytes_serializer() -> Serializer[Bytes] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Bytes),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
@@ -676,6 +688,9 @@ fn decode_number_as_double_with_tail(
   }
 }
 
+/// Returns a serializer for signed 32-bit integers.
+///
+/// JSON deserialization accepts numbers and numeric strings.
 pub fn int32_serializer() -> Serializer[Int] {
   new_serializer({
     is_default: fn(input : Int) { input == 0 },
@@ -702,12 +717,16 @@ pub fn int32_serializer() -> Serializer[Int] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Int32),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
 }
 
+/// Returns a serializer for signed 64-bit integers.
+///
+/// Values outside JSON's safe integer range are emitted as quoted strings to
+/// avoid precision loss in downstream JSON tooling.
 pub fn int64_serializer() -> Serializer[Int64] {
   new_serializer({
     is_default: fn(input : Int64) { input == 0L },
@@ -752,12 +771,16 @@ pub fn int64_serializer() -> Serializer[Int64] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Int64),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
 }
 
+/// Returns a serializer for unsigned 64-bit hash values.
+///
+/// Values above JSON's safe integer range are emitted as quoted strings to
+/// preserve exact round-tripping.
 pub fn hash64_serializer() -> Serializer[UInt64] {
   new_serializer({
     is_default: fn(input : UInt64) { input == 0UL },
@@ -807,12 +830,15 @@ pub fn hash64_serializer() -> Serializer[UInt64] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Hash64),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
 }
 
+/// Returns a serializer for 32-bit floating-point values.
+///
+/// `NaN` and infinities are represented as quoted strings in JSON.
 pub fn float32_serializer() -> Serializer[Float] {
   new_serializer({
     is_default: fn(input : Float) { input == 0.0 },
@@ -855,12 +881,15 @@ pub fn float32_serializer() -> Serializer[Float] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Float32),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
 }
 
+/// Returns a serializer for 64-bit floating-point values.
+///
+/// `NaN` and infinities are represented as quoted strings in JSON.
 pub fn float64_serializer() -> Serializer[Double] {
   new_serializer({
     is_default: fn(input : Double) { input == 0.0 },
@@ -893,7 +922,7 @@ pub fn float64_serializer() -> Serializer[Double] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Float64),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
@@ -912,6 +941,9 @@ fn timestamp_json_to_millis(json : Json) -> Int64 {
   }
 }
 
+/// Returns a serializer for timestamps.
+///
+/// Timestamps are encoded as Unix milliseconds in both JSON and binary forms.
 pub fn timestamp_serializer() -> Serializer[Timestamp] {
   new_serializer({
     is_default: fn(input : Timestamp) { input.unix_millis() == 0L },
@@ -951,12 +983,16 @@ pub fn timestamp_serializer() -> Serializer[Timestamp] {
     type_descriptor: fn() {
       {
         root_type: TypeSignature::Primitive(PrimitiveType::Timestamp),
-        records: [],
+        records: @immut_vector.Vector::new(),
       }
     },
   })
 }
 
+/// Wraps another serializer to support optional values.
+///
+/// `None` is encoded as JSON `null` and as the dedicated zero wire marker in
+/// binary format.
 pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
   let other = other.adapter
   new_serializer({
@@ -1019,6 +1055,9 @@ pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
   })
 }
 
+/// Wraps another serializer to support recursive values.
+///
+/// This helper is used by generated code for self-referential schemas.
 pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]] {
   let other = other.adapter
   new_serializer({
@@ -1188,12 +1227,20 @@ fn[T] vector_serializer_impl(
   })
 }
 
+/// Returns a serializer for immutable vectors.
+///
+/// JSON is encoded as an array. Binary uses compact length-prefixed array
+/// markers.
 pub fn[T] vector_serializer(
   item_serializer : Serializer[T]
 ) -> Serializer[@immut_vector.Vector[T]] {
   vector_serializer_impl(item_serializer, "")
 }
 
+/// Returns a serializer for immutable vectors with a key extractor hint.
+///
+/// The key extractor is only used in the emitted type descriptor for keyed
+/// collection metadata.
 pub fn[T] keyed_vector_serializer(
   item_serializer : Serializer[T],
   key_extractor : String,

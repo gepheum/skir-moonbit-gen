@@ -73,7 +73,7 @@ pub fn[T] Internal_EnumAdapter::add_constant_variant(
     wrap_from_json: fn(_json, _policy) { Err("variant '" + name + "' is a constant, not a wrapper") },
     wrap_decode: fn(_input, _policy) { Err("variant '" + name + "' is a constant, not a wrapper") },
     descriptor_variant: EnumVariant::Constant({ name, number, doc }),
-    child_records: [],
+    child_records: @immut_vector.Vector::new(),
   }
   self.set_kind_ordinal_entry(kind_ordinal, entry)
   self.desc_variants.push(entry.descriptor_variant)
@@ -177,7 +177,7 @@ priv struct EnumVariantEntry[T] {
   wrap_from_json : (Json, UnrecognizedValues) -> Result[T, String]
   wrap_decode : (InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
   descriptor_variant : EnumVariant
-  child_records : Array[RecordDescriptor]
+  child_records : @immut_vector.Vector[RecordDescriptor]
 }
 
 fn[T] Internal_EnumAdapter::set_kind_ordinal_entry(
@@ -238,7 +238,10 @@ fn[T] Internal_EnumAdapter::full_record_id(self : Internal_EnumAdapter[T]) -> St
   }
 }
 
-fn enum_append_unique_records(target : Array[RecordDescriptor], source : Array[RecordDescriptor]) -> Unit {
+fn enum_append_unique_records(
+  target : Array[RecordDescriptor],
+  source : @immut_vector.Vector[RecordDescriptor],
+) -> Unit {
   for record in source {
     let record_id = enum_record_id(record)
     let mut seen = false
@@ -554,8 +557,8 @@ pub fn[T] Internal_EnumAdapter::serializer(self : Internal_EnumAdapter[T]) -> Se
         RecordDescriptor::Enum({
           record_id,
           doc: self.doc,
-          removed_numbers: self.removed_numbers,
-          variants: self.desc_variants,
+          removed_numbers: @immut_vector.Vector::from_array(self.removed_numbers),
+          variants: @immut_vector.Vector::from_array(self.desc_variants),
         }),
       )
       for entry_opt in self.kind_ordinal_to_entry {
@@ -566,7 +569,7 @@ pub fn[T] Internal_EnumAdapter::serializer(self : Internal_EnumAdapter[T]) -> Se
       }
       {
         root_type: TypeSignature::Record(record_id),
-        records,
+        records: @immut_vector.Vector::from_array(records),
       }
     },
   })

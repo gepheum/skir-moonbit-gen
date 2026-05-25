@@ -12,7 +12,7 @@ pub enum PrimitiveType {
 
 pub struct TypeDescriptor {
   root_type : TypeSignature
-  records : Array[RecordDescriptor]
+  records : @immut_vector.Vector[RecordDescriptor]
 }
 
 pub enum TypeSignature {
@@ -35,15 +35,15 @@ pub enum RecordDescriptor {
 pub struct StructRecordDescriptor {
   record_id : String
   doc : String
-  removed_numbers : Array[Int]
-  fields : Array[StructField]
+  removed_numbers : @immut_vector.Vector[Int]
+  fields : @immut_vector.Vector[StructField]
 }
 
 pub struct EnumRecordDescriptor {
   record_id : String
   doc : String
-  removed_numbers : Array[Int]
-  variants : Array[EnumVariant]
+  removed_numbers : @immut_vector.Vector[Int]
+  variants : @immut_vector.Vector[EnumVariant]
 }
 
 pub struct StructField {
@@ -112,13 +112,13 @@ fn parse_document(root : Json) -> Result[TypeDescriptor, String] {
           Err(e) => return Err(e)
         }
       Some(_) => return Err("'records' must be an array")
-      None => []
+      None => @immut_vector.Vector::new()
     }
 
   Ok({ root_type, records })
 }
 
-fn parse_records(items : Array[Json]) -> Result[Array[RecordDescriptor], String] {
+fn parse_records(items : Array[Json]) -> Result[@immut_vector.Vector[RecordDescriptor], String] {
   let out : Array[RecordDescriptor] = []
   for item in items {
     match parse_record(item) {
@@ -126,7 +126,7 @@ fn parse_records(items : Array[Json]) -> Result[Array[RecordDescriptor], String]
       Err(e) => return Err(e)
     }
   }
-  Ok(out)
+  Ok(@immut_vector.Vector::from_array(out))
 }
 
 fn parse_record(item : Json) -> Result[RecordDescriptor, String] {
@@ -142,7 +142,7 @@ fn parse_record(item : Json) -> Result[RecordDescriptor, String] {
     }
   let doc = get_optional_string(item, "doc")
   let removed_numbers =
-    match get_optional_int_array(item, "removed_numbers") {
+    match get_optional_int_vector(item, "removed_numbers") {
       Ok(v) => v
       Err(e) => return Err(e)
     }
@@ -182,7 +182,7 @@ fn parse_record(item : Json) -> Result[RecordDescriptor, String] {
       record_id,
       doc,
       removed_numbers,
-      fields,
+      fields: @immut_vector.Vector::from_array(fields),
     }))
   } else if kind == "enum" {
     let variants_json =
@@ -225,7 +225,7 @@ fn parse_record(item : Json) -> Result[RecordDescriptor, String] {
       record_id,
       doc,
       removed_numbers,
-      variants,
+      variants: @immut_vector.Vector::from_array(variants),
     }))
   } else {
     Err("unknown record kind")
@@ -324,12 +324,12 @@ fn primitive_type_to_string(p : PrimitiveType) -> String {
   }
 }
 
-fn records_to_json(records : Array[RecordDescriptor]) -> String {
+fn records_to_json(records : @immut_vector.Vector[RecordDescriptor]) -> String {
   if records.is_empty() {
     return "[]"
   }
   let parts : Array[String] = []
-  for r in records {
+  for r in records.iter() {
     parts.push(record_to_json(r, "    "))
   }
   "[\n" + join_with_prefix(parts, "    ") + "\n  ]"
@@ -352,7 +352,7 @@ fn struct_record_to_json(s : StructRecordDescriptor, indent : String) -> String 
   }
 
   let fields_parts : Array[String] = []
-  for f in s.fields {
+  for f in s.fields.iter() {
     fields_parts.push(struct_field_to_json(f, inner + "  "))
   }
   let fields_json =
@@ -367,7 +367,7 @@ fn struct_record_to_json(s : StructRecordDescriptor, indent : String) -> String 
     lines.push(
       inner +
       "\"removed_numbers\": [" +
-      join_int_array(s.removed_numbers) +
+      join_int_vector(s.removed_numbers) +
       "]",
     )
   }
@@ -385,7 +385,7 @@ fn enum_record_to_json(e : EnumRecordDescriptor, indent : String) -> String {
   }
 
   let variants_parts : Array[String] = []
-  for v in e.variants {
+  for v in e.variants.iter() {
     variants_parts.push(enum_variant_to_json(v, inner + "  "))
   }
   let variants_json =
@@ -404,7 +404,7 @@ fn enum_record_to_json(e : EnumRecordDescriptor, indent : String) -> String {
     lines.push(
       inner +
       "\"removed_numbers\": [" +
-      join_int_array(e.removed_numbers) +
+      join_int_vector(e.removed_numbers) +
       "]",
     )
   }
@@ -553,7 +553,7 @@ fn get_required_int(v : Json, key : String) -> Result[Int, String] {
   }
 }
 
-fn get_optional_int_array(v : Json, key : String) -> Result[Array[Int], String] {
+fn get_optional_int_vector(v : Json, key : String) -> Result[@immut_vector.Vector[Int], String] {
   match get_object_field(v, key) {
     Some(Json::Array(arr)) => {
       let out : Array[Int] = []
@@ -563,10 +563,10 @@ fn get_optional_int_array(v : Json, key : String) -> Result[Array[Int], String] 
           Err(e) => return Err(e)
         }
       }
-      Ok(out)
+      Ok(@immut_vector.Vector::from_array(out))
     }
     Some(_) => Err("field is not an integer array")
-    None => Ok([])
+    None => Ok(@immut_vector.Vector::new())
   }
 }
 
@@ -588,10 +588,10 @@ fn quote_json_string(s : String) -> String {
   "\"" + s + "\""
 }
 
-fn join_int_array(items : Array[Int]) -> String {
+fn join_int_vector(items : @immut_vector.Vector[Int]) -> String {
   let mut out = ""
   let mut first = true
-  for i in items {
+  for i in items.iter() {
     if first {
       first = false
       out = i.to_string()

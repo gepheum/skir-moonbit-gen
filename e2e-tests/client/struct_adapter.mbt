@@ -124,7 +124,7 @@ priv struct StructFieldEntry[T] {
   name : String
   doc : String
   field_type : TypeSignature
-  field_records : Array[RecordDescriptor]
+  field_records : @immut_vector.Vector[RecordDescriptor]
   is_field_default : (T) -> Bool
   field_to_dense_json : (T, StringBuilder) -> Unit
   field_to_readable_json : (T) -> Json
@@ -256,7 +256,10 @@ fn[T] Internal_StructAdapter::full_record_id(self : Internal_StructAdapter[T]) -
   }
 }
 
-fn struct_append_unique_records(target : Array[RecordDescriptor], source : Array[RecordDescriptor]) -> Unit {
+fn struct_append_unique_records(
+  target : Array[RecordDescriptor],
+  source : @immut_vector.Vector[RecordDescriptor],
+) -> Unit {
   for record in source {
     let record_id = struct_record_id(record)
     let mut seen = false
@@ -503,8 +506,8 @@ pub fn[T] Internal_StructAdapter::serializer(self : Internal_StructAdapter[T]) -
         RecordDescriptor::Struct({
           record_id,
           doc: self.doc,
-          removed_numbers: self.removed_numbers,
-          fields,
+          removed_numbers: @immut_vector.Vector::from_array(self.removed_numbers),
+          fields: @immut_vector.Vector::from_array(fields),
         }),
       )
       for e in self.ordered_entries {
@@ -512,7 +515,7 @@ pub fn[T] Internal_StructAdapter::serializer(self : Internal_StructAdapter[T]) -
       }
       {
         root_type: TypeSignature::Record(record_id),
-        records,
+        records: @immut_vector.Vector::from_array(records),
       }
     },
   })
