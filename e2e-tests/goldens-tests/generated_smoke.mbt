@@ -51,7 +51,7 @@ test "generated_goldens_constant_roundtrip" {
 test "generated_keyed_vector_wrapper_lookup" {
   let monday_item = @goldens.KeyedArrays_Item::new(
     sub_item=@goldens.KeyedArrays_SubItem::new(
-      weekday=@goldens.KeyedArrays_Weekday::Monday,
+      weekday=@goldens.KeyedArrays_Weekday::monday(),
     ),
   )
   let keyed = @goldens.KeyedArrays_Item_bySubItem_Weekday_Kind::from_array([monday_item])
@@ -66,7 +66,7 @@ test "generated_keyed_vector_wrapper_lookup" {
 }
 
 test "generated_enum_roundtrip_smoke" {
-  let value = @goldens.EnumB::B("payload")
+  let value = @goldens.EnumB::b("payload")
   let serializer = @goldens.EnumB::serializer()
 
   let dense = serializer.to_dense_json_code(value)

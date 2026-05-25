@@ -549,7 +549,7 @@ fn verify_assertion(assertion : @goldens.Assertion) -> String? {
           Err(_) => return Some("enum_a_from_json")
         }
       match @goldens.EnumA::serializer().from_json_code(code, unrecognized_values=policy(value.keep_unrecognized)) {
-        Ok(parsed) => if parsed == @goldens.EnumA::A { None } else { Some("enum_a_from_json") }
+        Ok(parsed) => if parsed == @goldens.EnumA::a() { None } else { Some("enum_a_from_json") }
         Err(_) => Some("enum_a_from_json")
       }
     }
@@ -560,7 +560,7 @@ fn verify_assertion(assertion : @goldens.Assertion) -> String? {
           Err(_) => return Some("enum_a_from_bytes")
         }
       match @goldens.EnumA::serializer().from_bytes(encoded, unrecognized_values=policy(value.keep_unrecognized)) {
-        Ok(parsed) => if parsed == @goldens.EnumA::A { None } else { Some("enum_a_from_bytes") }
+        Ok(parsed) => if parsed == @goldens.EnumA::a() { None } else { Some("enum_a_from_bytes") }
         Err(_) => Some("enum_a_from_bytes")
       }
     }
@@ -571,7 +571,7 @@ fn verify_assertion(assertion : @goldens.Assertion) -> String? {
           Err(_) => return Some("enum_b_from_json")
         }
       match @goldens.EnumB::serializer().from_json_code(code, unrecognized_values=policy(value.keep_unrecognized)) {
-        Ok(parsed) => if parsed == @goldens.EnumB::B(value.expected) { None } else { Some("enum_b_from_json") }
+        Ok(parsed) => if parsed == @goldens.EnumB::b(value.expected) { None } else { Some("enum_b_from_json") }
         Err(_) => Some("enum_b_from_json")
       }
     }
@@ -582,7 +582,7 @@ fn verify_assertion(assertion : @goldens.Assertion) -> String? {
           Err(_) => return Some("enum_b_from_bytes")
         }
       match @goldens.EnumB::serializer().from_bytes(encoded, unrecognized_values=policy(value.keep_unrecognized)) {
-        Ok(parsed) => if parsed == @goldens.EnumB::B(value.expected) { None } else { Some("enum_b_from_bytes") }
+        Ok(parsed) => if parsed == @goldens.EnumB::b(value.expected) { None } else { Some("enum_b_from_bytes") }
         Err(_) => Some("enum_b_from_bytes")
       }
     }

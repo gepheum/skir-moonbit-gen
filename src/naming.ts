@@ -1,4 +1,4 @@
-import { convertCase, type RecordLocation } from "skir-internal";
+import { convertCase, Field, type RecordLocation } from "skir-internal";
 
 export function modulePathToPackageDir(modulePath: string): string {
   return modulePath.replace(/\.skir$/, "");
@@ -32,6 +32,15 @@ export function toStructFieldName(name: string): string {
   return isReservedIdentifier(name) ? `${name}_` : name;
 }
 
+export function getEnumFactoryMethodName(variant: Field): string {
+  const candidate = convertCase(variant.name.text, "lower_underscore");
+  return isReservedIdentifier(candidate) ||
+    candidate === "serializer" ||
+    candidate === "kind"
+    ? `${candidate}_`
+    : candidate;
+}
+
 function isReservedIdentifier(name: string): boolean {
   return RESERVED_IDENTIFIERS.has(name);
 }
@@ -57,6 +66,7 @@ const RESERVED_IDENTIFIERS = new Set<string>([
   "let",
   "loop",
   "match",
+  "member",
   "mut",
   "or",
   "priv",

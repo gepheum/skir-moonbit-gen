@@ -31,6 +31,7 @@ enum EmptyEnum {
 enum EnumWithNameConflict {
   serializer;
   if: bool;
+  kind: bool;
 }
 
 enum EnumWithStructField {

@@ -17,6 +17,7 @@ import {
   keyTypeIsSupported,
 } from "./keyed_array_context.js";
 import {
+  getEnumFactoryMethodName,
   getTypeName,
   getTypeNameLower,
   modulePathToAlias,
@@ -365,7 +366,7 @@ class MoonbitSourceFileGenerator {
       docToCommentText(record.record.doc),
     );
 
-    out.push(`pub(all) enum ${typeName} {\n`);
+    out.push(`pub enum ${typeName} {\n`);
     out.push("  Unknown(@client.Internal_UnrecognizedVariant?)\n");
     const variantNames: Array<{
       field: Field;
@@ -396,6 +397,22 @@ class MoonbitSourceFileGenerator {
     out.push(`pub fn ${typeName}::unknown() -> ${typeName} {\n`);
     out.push(`  ${unknownVarName}\n`);
     out.push("}\n\n");
+
+    for (const variant of variantNames) {
+      const methodName = getEnumFactoryMethodName(variant.field);
+      if (!variant.field.type) {
+        out.push(`pub fn ${typeName}::${methodName}() -> ${typeName} {\n`);
+        out.push(`  ${typeName}::${variant.variantName}\n`);
+        out.push("}\n\n");
+      } else {
+        const valueType = this.typeSpeller.getMoonbitType(variant.field.type);
+        out.push(
+          `pub fn ${typeName}::${methodName}(value : ${valueType}) -> ${typeName} {\n`,
+        );
+        out.push(`  ${typeName}::${variant.variantName}(value)\n`);
+        out.push("}\n\n");
+      }
+    }
 
     const addVariantLines: string[] = [];
     let kindOrdinal = 1;
