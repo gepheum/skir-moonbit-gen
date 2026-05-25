@@ -1,12 +1,17 @@
-priv enum UnrecognizedFormat {
-  DenseJson(Json)
-  Bytes(Bytes)
-} derive(Eq, Debug)
-
 pub struct UnrecognizedFields {
   priv format : UnrecognizedFormat
   priv array_len : Int
 }
+
+pub struct UnrecognizedVariant {
+  priv format : UnrecognizedFormat
+  priv number : Int
+}
+
+priv enum UnrecognizedFormat {
+  DenseJson(Json)
+  Bytes(Bytes)
+} derive(Eq, Debug)
 
 fn unrecognized_fields_from_json(
   array_len : Int,
@@ -44,11 +49,6 @@ fn UnrecognizedFields::bytes(self : UnrecognizedFields) -> Bytes? {
     UnrecognizedFormat::Bytes(bytes) => Some(bytes)
     _ => None
   }
-}
-
-pub struct UnrecognizedVariant {
-  priv format : UnrecognizedFormat
-  priv number : Int
 }
 
 fn unrecognized_variant_from_bytes(
