@@ -354,7 +354,7 @@ class MoonbitSourceFileGenerator {
     out.push(`pub(all) enum ${typeName} {\n`);
     const usedNames = new Set<string>();
     usedNames.add("Unknown");
-    out.push("  Unknown(@client.UnrecognizedVariant)\n");
+    out.push("  Unknown(@client.UnrecognizedVariant?)\n");
     const variantNames: Array<{
       field: Field;
       hasPayload: boolean;
@@ -378,9 +378,7 @@ class MoonbitSourceFileGenerator {
     out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
     out.push(`let ${unknownVarName} : ${typeName} = `);
-    out.push(
-      `${typeName}::Unknown(@client.unrecognized_variant_default())\n\n`,
-    );
+        out.push(`${typeName}::Unknown(None)\n\n`);
 
     out.push(`pub fn ${typeName}::unknown() -> ${typeName} {\n`);
     out.push(`  ${unknownVarName}\n`);
@@ -451,12 +449,12 @@ class MoonbitSourceFileGenerator {
       }
       out.push("    }\n");
       out.push("  },\n");
-      out.push(
-        `  fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(value) },\n`,
-      );
+          out.push(
+            `  fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(Some(value)) },\n`,
+          );
       out.push(`  fn(input : ${typeName}) {\n`);
       out.push("    match input {\n");
-      out.push(`      ${typeName}::Unknown(value) => Some(value)\n`);
+      out.push(`      ${typeName}::Unknown(value) => value\n`);
       if (variantNames.length > 0) {
         out.push("      _ => None\n");
       }
@@ -501,12 +499,12 @@ class MoonbitSourceFileGenerator {
       }
       out.push("      }\n");
       out.push("    },\n");
-      out.push(
-        `    fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(value) },\n`,
-      );
+          out.push(
+            `    fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(Some(value)) },\n`,
+          );
       out.push(`    fn(input : ${typeName}) {\n`);
       out.push("      match input {\n");
-      out.push(`        ${typeName}::Unknown(value) => Some(value)\n`);
+      out.push(`        ${typeName}::Unknown(value) => value\n`);
       if (variantNames.length > 0) {
         out.push("        _ => None\n");
       }

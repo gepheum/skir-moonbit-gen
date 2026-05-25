@@ -118,7 +118,7 @@ export class TypeSpeller {
           case "float64":
             return "0.0";
           case "timestamp":
-            return "@client.timestamp_default()";
+            return "@client.Timestamp::unix_epoch()";
           case "string":
             return '""';
           case "bytes":
