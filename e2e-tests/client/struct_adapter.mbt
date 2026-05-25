@@ -1,17 +1,3 @@
-priv struct StructFieldEntry[T] {
-  number : Int
-  name : String
-  doc : String
-  field_type : TypeSignature
-  field_records : Array[RecordDescriptor]
-  is_field_default : (T) -> Bool
-  field_to_dense_json : (T, StringBuilder) -> Unit
-  field_to_readable_json : (T) -> Json
-  field_from_json : (T, Json, UnrecognizedValues) -> Result[Unit, String]
-  encode_field : (T, OutputStream) -> OutputStream
-  decode_field : (T, InputStream, UnrecognizedValues) -> Result[InputStream, String]
-}
-
 pub struct StructAdapter[T] {
   module_path : String
   qualified_name : String
@@ -131,6 +117,20 @@ fn[T] StructAdapter::get_slot_count(self : StructAdapter[T], input : T) -> Int {
     }
   }
   max_non_default + 1
+}
+
+priv struct StructFieldEntry[T] {
+  number : Int
+  name : String
+  doc : String
+  field_type : TypeSignature
+  field_records : Array[RecordDescriptor]
+  is_field_default : (T) -> Bool
+  field_to_dense_json : (T, StringBuilder) -> Unit
+  field_to_readable_json : (T) -> Json
+  field_from_json : (T, Json, UnrecognizedValues) -> Result[Unit, String]
+  encode_field : (T, OutputStream) -> OutputStream
+  decode_field : (T, InputStream, UnrecognizedValues) -> Result[InputStream, String]
 }
 
 fn[T] StructAdapter::to_dense_json_impl(self : StructAdapter[T], input : T, out : StringBuilder) -> Unit {

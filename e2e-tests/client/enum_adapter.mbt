@@ -1,21 +1,3 @@
-priv enum EnumAnyEntry {
-  Removed
-  Constant(Int)
-  Wrapper(Int)
-}
-
-priv struct EnumVariantEntry[T] {
-  constant : () -> T?
-  wrapper_default : () -> T
-  variant_to_dense_json : (T, StringBuilder) -> Unit
-  variant_to_readable_json : (T) -> Json
-  encode_value : (T, OutputStream) -> OutputStream
-  wrap_from_json : (Json, UnrecognizedValues) -> Result[T, String]
-  wrap_decode : (InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
-  descriptor_variant : EnumVariant
-  child_records : Array[RecordDescriptor]
-}
-
 pub struct EnumAdapter[T] {
   module_path : String
   qualified_name : String
@@ -54,17 +36,6 @@ pub fn[T] EnumAdapter::new(
     kind_ordinal_to_entry: [None],
     desc_variants: [],
   }
-}
-
-fn[T] EnumAdapter::set_kind_ordinal_entry(
-  self : EnumAdapter[T],
-  kind_ordinal : Int,
-  entry : EnumVariantEntry[T],
-) -> Unit {
-  while self.kind_ordinal_to_entry.length() <= kind_ordinal {
-    self.kind_ordinal_to_entry.push(None)
-  }
-  self.kind_ordinal_to_entry[kind_ordinal] = Some(entry)
 }
 
 pub fn[T] EnumAdapter::add_constant_variant(
@@ -189,6 +160,35 @@ pub fn[T] EnumAdapter::add_removed_number(self : EnumAdapter[T], number : Int) -
 pub fn[T] EnumAdapter::finalize(self : EnumAdapter[T]) -> Unit {
   self.name_to_kind_ordinal.set("UNKNOWN", 0)
   self.name_to_kind_ordinal.set("unknown", 0)
+}
+
+priv enum EnumAnyEntry {
+  Removed
+  Constant(Int)
+  Wrapper(Int)
+}
+
+priv struct EnumVariantEntry[T] {
+  constant : () -> T?
+  wrapper_default : () -> T
+  variant_to_dense_json : (T, StringBuilder) -> Unit
+  variant_to_readable_json : (T) -> Json
+  encode_value : (T, OutputStream) -> OutputStream
+  wrap_from_json : (Json, UnrecognizedValues) -> Result[T, String]
+  wrap_decode : (InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
+  descriptor_variant : EnumVariant
+  child_records : Array[RecordDescriptor]
+}
+
+fn[T] EnumAdapter::set_kind_ordinal_entry(
+  self : EnumAdapter[T],
+  kind_ordinal : Int,
+  entry : EnumVariantEntry[T],
+) -> Unit {
+  while self.kind_ordinal_to_entry.length() <= kind_ordinal {
+    self.kind_ordinal_to_entry.push(None)
+  }
+  self.kind_ordinal_to_entry[kind_ordinal] = Some(entry)
 }
 
 fn[T] EnumAdapter::contains_removed(self : EnumAdapter[T], number : Int) -> Bool {
