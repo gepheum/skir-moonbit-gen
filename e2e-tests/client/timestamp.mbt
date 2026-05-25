@@ -144,10 +144,6 @@ pub impl Compare for Timestamp with compare(self, other) {
   self.unix_millis.compare(other.unix_millis)
 }
 
-pub impl Show for Timestamp with to_string(self) {
-  self.to_iso8601()
-}
-
 pub impl Debug for Timestamp with to_repr(self) {
   Debug::to_repr(self.unix_millis)
 }
@@ -192,9 +188,4 @@ test "timestamp_comparison_operators" {
   assert_eq_ts(a <= c, true)
   assert_eq_ts(b > a, true)
   assert_eq_ts(b >= c, true)
-}
-
-test "timestamp_to_string_is_iso8601" {
-  let ts = Timestamp::from_unix_millis(1234567890000L)
-  assert_eq_ts(ts.to_string(), "2009-02-13T23:31:30.000Z")
 }

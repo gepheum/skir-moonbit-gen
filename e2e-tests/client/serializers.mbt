@@ -1559,11 +1559,6 @@ test "timestamp_comparison_operators" {
   assert_eq(b >= c, true)
 }
 
-test "timestamp_to_string_is_iso8601" {
-  let ts = Timestamp::from_unix_millis(1234567890000L)
-  assert_eq(ts.to_string(), "2009-02-13T23:31:30.000Z")
-}
-
 test "array_to_json_dense_nonempty" {
   let s = vector_serializer(int32_serializer())
   assert_eq(s.to_dense_json(immut_from_array([1, 2, 3])), "[1,2,3]")
