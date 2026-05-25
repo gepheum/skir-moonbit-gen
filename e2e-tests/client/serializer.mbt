@@ -3,6 +3,10 @@ pub enum UnrecognizedValues {
   Drop
 }
 
+pub fn unrecognized_values_keep() -> UnrecognizedValues {
+  UnrecognizedValues::Keep
+}
+
 pub fn unrecognized_values_drop() -> UnrecognizedValues {
   UnrecognizedValues::Drop
 }

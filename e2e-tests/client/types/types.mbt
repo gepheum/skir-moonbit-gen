@@ -34,6 +34,9 @@ pub fn unrecognized_variant_default() -> UnrecognizedVariant {
 pub let unrecognized_values_drop : () -> @runtime.UnrecognizedValues =
 	@runtime.unrecognized_values_drop
 
+pub let unrecognized_values_keep : () -> @runtime.UnrecognizedValues =
+	@runtime.unrecognized_values_keep
+
 pub fn timestamp_default() -> Timestamp {
 	@runtime.Timestamp::from_unix_millis(0L)
 }
