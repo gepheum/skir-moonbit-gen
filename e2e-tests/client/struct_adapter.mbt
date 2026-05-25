@@ -1,4 +1,4 @@
-pub struct StructAdapter[T] {
+pub struct Internal_StructAdapter[T] {
   module_path : String
   qualified_name : String
   doc : String
@@ -11,14 +11,14 @@ pub struct StructAdapter[T] {
   priv removed_numbers : Array[Int]
 }
 
-pub fn[T] StructAdapter::new(
+pub fn[T] Internal_StructAdapter::new(
   module_path : String,
   qualified_name : String,
   doc : String,
   default_value : () -> T,
   get_unrecognized : (T) -> UnrecognizedFields?,
   set_unrecognized : (T, UnrecognizedFields?) -> Unit,
-) -> StructAdapter[T] {
+) -> Internal_StructAdapter[T] {
   {
     module_path,
     qualified_name,
@@ -33,8 +33,8 @@ pub fn[T] StructAdapter::new(
   }
 }
 
-pub fn[T, V] StructAdapter::add_field(
-  self : StructAdapter[T],
+pub fn[T, V] Internal_StructAdapter::add_field(
+  self : Internal_StructAdapter[T],
   name : String,
   number : Int,
   serializer : Serializer[V],
@@ -76,11 +76,11 @@ pub fn[T, V] StructAdapter::add_field(
   self.ordered_entries.push(entry)
 }
 
-pub fn[T] StructAdapter::add_removed_number(self : StructAdapter[T], number : Int) -> Unit {
+pub fn[T] Internal_StructAdapter::add_removed_number(self : Internal_StructAdapter[T], number : Int) -> Unit {
   self.removed_numbers.push(number)
 }
 
-pub fn[T] StructAdapter::finalize(self : StructAdapter[T]) -> Unit {
+pub fn[T] Internal_StructAdapter::finalize(self : Internal_StructAdapter[T]) -> Unit {
   self.name_to_index.clear()
   let mut max_field = -1
   for i in 0..<self.ordered_entries.length() {
@@ -109,7 +109,7 @@ pub fn[T] StructAdapter::finalize(self : StructAdapter[T]) -> Unit {
   }
 }
 
-fn[T] StructAdapter::get_slot_count(self : StructAdapter[T], input : T) -> Int {
+fn[T] Internal_StructAdapter::get_slot_count(self : Internal_StructAdapter[T], input : T) -> Int {
   let mut max_non_default = -1
   for e in self.ordered_entries {
       if !(e.is_field_default)(input) && e.number > max_non_default {
@@ -133,7 +133,7 @@ priv struct StructFieldEntry[T] {
   decode_field : (T, InputStream, UnrecognizedValues) -> Result[InputStream, String]
 }
 
-fn[T] StructAdapter::to_dense_json_impl(self : StructAdapter[T], input : T, out : StringBuilder) -> Unit {
+fn[T] Internal_StructAdapter::to_dense_json_impl(self : Internal_StructAdapter[T], input : T, out : StringBuilder) -> Unit {
   let unrecognized = (self.get_unrecognized)(input)
   let mut total_slot_count = self.get_slot_count(input)
   let mut extra_values : Array[Json] = []
@@ -173,8 +173,8 @@ fn[T] StructAdapter::to_dense_json_impl(self : StructAdapter[T], input : T, out 
   out.write_char(']')
 }
 
-fn[T] StructAdapter::from_dense_json_impl(
-  self : StructAdapter[T],
+fn[T] Internal_StructAdapter::from_dense_json_impl(
+  self : Internal_StructAdapter[T],
   arr : Array[Json],
   policy : UnrecognizedValues,
 ) -> Result[T, String] {
@@ -209,8 +209,8 @@ fn[T] StructAdapter::from_dense_json_impl(
   Ok(value)
 }
 
-fn[T] StructAdapter::from_readable_json_impl(
-  self : StructAdapter[T],
+fn[T] Internal_StructAdapter::from_readable_json_impl(
+  self : Internal_StructAdapter[T],
   json : Json,
   policy : UnrecognizedValues,
 ) -> Result[T, String] {
@@ -248,7 +248,7 @@ fn struct_record_id(record : RecordDescriptor) -> String {
   }
 }
 
-fn[T] StructAdapter::full_record_id(self : StructAdapter[T]) -> String {
+fn[T] Internal_StructAdapter::full_record_id(self : Internal_StructAdapter[T]) -> String {
   if self.qualified_name == "" {
     self.module_path
   } else {
@@ -338,7 +338,7 @@ fn skip_value(input : InputStream) -> Result[InputStream, String] {
   }
 }
 
-pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
+pub fn[T] Internal_StructAdapter::serializer(self : Internal_StructAdapter[T]) -> Serializer[T] {
   new_serializer({
     is_default: fn(input : T) {
       match (self.get_unrecognized)(input) {

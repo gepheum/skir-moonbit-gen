@@ -1,4 +1,4 @@
-pub struct EnumAdapter[T] {
+pub struct Internal_EnumAdapter[T] {
   module_path : String
   qualified_name : String
   doc : String
@@ -13,7 +13,7 @@ pub struct EnumAdapter[T] {
   priv desc_variants : Array[EnumVariant]
 }
 
-pub fn[T] EnumAdapter::new(
+pub fn[T] Internal_EnumAdapter::new(
   module_path : String,
   qualified_name : String,
   doc : String,
@@ -21,7 +21,7 @@ pub fn[T] EnumAdapter::new(
   get_kind_ordinal : (T) -> Int,
   wrap_unrecognized : (UnrecognizedVariant) -> T,
   get_unrecognized : (T) -> UnrecognizedVariant?,
-) -> EnumAdapter[T] {
+) -> Internal_EnumAdapter[T] {
   {
     module_path,
     qualified_name,
@@ -38,8 +38,8 @@ pub fn[T] EnumAdapter::new(
   }
 }
 
-pub fn[T] EnumAdapter::add_constant_variant(
-  self : EnumAdapter[T],
+pub fn[T] Internal_EnumAdapter::add_constant_variant(
+  self : Internal_EnumAdapter[T],
   name : String,
   number : Int,
   kind_ordinal : Int,
@@ -79,8 +79,8 @@ pub fn[T] EnumAdapter::add_constant_variant(
   self.desc_variants.push(entry.descriptor_variant)
 }
 
-pub fn[T, V] EnumAdapter::add_wrapper_variant(
-  self : EnumAdapter[T],
+pub fn[T, V] Internal_EnumAdapter::add_wrapper_variant(
+  self : Internal_EnumAdapter[T],
   name : String,
   number : Int,
   kind_ordinal : Int,
@@ -152,12 +152,12 @@ pub fn[T, V] EnumAdapter::add_wrapper_variant(
   self.desc_variants.push(entry.descriptor_variant)
 }
 
-pub fn[T] EnumAdapter::add_removed_number(self : EnumAdapter[T], number : Int) -> Unit {
+pub fn[T] Internal_EnumAdapter::add_removed_number(self : Internal_EnumAdapter[T], number : Int) -> Unit {
   self.number_to_entry.set(number, EnumAnyEntry::Removed)
   self.removed_numbers.push(number)
 }
 
-pub fn[T] EnumAdapter::finalize(self : EnumAdapter[T]) -> Unit {
+pub fn[T] Internal_EnumAdapter::finalize(self : Internal_EnumAdapter[T]) -> Unit {
   self.name_to_kind_ordinal.set("UNKNOWN", 0)
   self.name_to_kind_ordinal.set("unknown", 0)
 }
@@ -180,8 +180,8 @@ priv struct EnumVariantEntry[T] {
   child_records : Array[RecordDescriptor]
 }
 
-fn[T] EnumAdapter::set_kind_ordinal_entry(
-  self : EnumAdapter[T],
+fn[T] Internal_EnumAdapter::set_kind_ordinal_entry(
+  self : Internal_EnumAdapter[T],
   kind_ordinal : Int,
   entry : EnumVariantEntry[T],
 ) -> Unit {
@@ -191,7 +191,7 @@ fn[T] EnumAdapter::set_kind_ordinal_entry(
   self.kind_ordinal_to_entry[kind_ordinal] = Some(entry)
 }
 
-fn[T] EnumAdapter::contains_removed(self : EnumAdapter[T], number : Int) -> Bool {
+fn[T] Internal_EnumAdapter::contains_removed(self : Internal_EnumAdapter[T], number : Int) -> Bool {
   for n in self.removed_numbers {
     if n == number {
       return true
@@ -207,7 +207,7 @@ fn enum_is_keep(policy : UnrecognizedValues) -> Bool {
   }
 }
 
-fn[T] EnumAdapter::entry_at_kind(self : EnumAdapter[T], ko : Int) -> EnumVariantEntry[T]? {
+fn[T] Internal_EnumAdapter::entry_at_kind(self : Internal_EnumAdapter[T], ko : Int) -> EnumVariantEntry[T]? {
   if ko >= 0 && ko < self.kind_ordinal_to_entry.length() {
     self.kind_ordinal_to_entry[ko]
   } else {
@@ -230,7 +230,7 @@ fn enum_record_id(record : RecordDescriptor) -> String {
   }
 }
 
-fn[T] EnumAdapter::full_record_id(self : EnumAdapter[T]) -> String {
+fn[T] Internal_EnumAdapter::full_record_id(self : Internal_EnumAdapter[T]) -> String {
   if self.qualified_name == "" {
     self.module_path
   } else {
@@ -254,7 +254,7 @@ fn enum_append_unique_records(target : Array[RecordDescriptor], source : Array[R
   }
 }
 
-pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
+pub fn[T] Internal_EnumAdapter::serializer(self : Internal_EnumAdapter[T]) -> Serializer[T] {
   new_serializer({
     is_default: fn(input : T) { (self.get_kind_ordinal)(input) == 0 },
     to_dense_json: fn(input : T, out : StringBuilder) {

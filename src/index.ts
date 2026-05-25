@@ -258,7 +258,7 @@ class MoonbitSourceFileGenerator {
 
     if (isRecursive) {
       out.push(
-        `let ${adapterVarName} : @client.StructAdapter[${typeName}] = @client.StructAdapter::new(\n`,
+        `let ${adapterVarName} : @client.Internal_StructAdapter[${typeName}] = @client.Internal_StructAdapter::new(\n`,
       );
       out.push(`  ${recordIdLiteral},\n`);
       out.push('  "",\n');
@@ -298,13 +298,13 @@ class MoonbitSourceFileGenerator {
       out.push("}\n\n");
 
       out.push(
-        `let ${adapterVarName} : @client.StructAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
+        `let ${adapterVarName} : @client.Internal_StructAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
       );
 
       out.push(
-        `fn ${adapterInitFnName}() -> @client.StructAdapter[${typeName}] {\n`,
+        `fn ${adapterInitFnName}() -> @client.Internal_StructAdapter[${typeName}] {\n`,
       );
-      out.push("  let adapter = @client.StructAdapter::new(\n");
+      out.push("  let adapter = @client.Internal_StructAdapter::new(\n");
       out.push(`    ${recordIdLiteral},\n`);
       out.push('    "",\n');
       out.push(`    ${recordDocLiteral},\n`);
@@ -425,7 +425,7 @@ class MoonbitSourceFileGenerator {
 
     if (isRecursive) {
       out.push(
-        `let ${adapterVarName} : @client.EnumAdapter[${typeName}] = @client.EnumAdapter::new(\n`,
+        `let ${adapterVarName} : @client.Internal_EnumAdapter[${typeName}] = @client.Internal_EnumAdapter::new(\n`,
       );
       out.push(`  ${recordIdLiteral},\n`);
       out.push('  "",\n');
@@ -474,9 +474,9 @@ class MoonbitSourceFileGenerator {
     } else {
       const adapterInitFnName = `${adapterVarName}__init`;
       out.push(
-        `fn ${adapterInitFnName}() -> @client.EnumAdapter[${typeName}] {\n`,
+        `fn ${adapterInitFnName}() -> @client.Internal_EnumAdapter[${typeName}] {\n`,
       );
-      out.push("  let adapter = @client.EnumAdapter::new(\n");
+      out.push("  let adapter = @client.Internal_EnumAdapter::new(\n");
       out.push(`    ${recordIdLiteral},\n`);
       out.push('    "",\n');
       out.push(`    ${recordDocLiteral},\n`);
@@ -522,7 +522,7 @@ class MoonbitSourceFileGenerator {
       out.push("}\n\n");
 
       out.push(
-        `let ${adapterVarName} : @client.EnumAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
+        `let ${adapterVarName} : @client.Internal_EnumAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
       );
     }
 
@@ -605,7 +605,7 @@ class MoonbitSourceFileGenerator {
       const specVarName = `${wrapperTypeName.toLowerCase()}__spec`;
 
       out.push(
-        `let ${specVarName} : @client.KeyedVectorSpec[${typeName}, ${keySpec.moonbitKeyType}] = {\n`,
+        `let ${specVarName} : @client.Internal_KeyedVectorSpec[${typeName}, ${keySpec.moonbitKeyType}] = {\n`,
       );
       out.push(
         `  get_key: fn(item : ${typeName}) { ${keySpec.moonbitKeyExpr} },\n`,
@@ -619,7 +619,7 @@ class MoonbitSourceFileGenerator {
       out.push(`pub struct ${wrapperTypeName} {
 `);
       out.push(
-        `  priv vector : @client.KeyedVector[${typeName}, ${keySpec.moonbitKeyType}]\n`,
+        `  priv vector : @client.Internal_KeyedVector[${typeName}, ${keySpec.moonbitKeyType}]\n`,
       );
       out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
@@ -633,7 +633,7 @@ class MoonbitSourceFileGenerator {
         `pub fn ${wrapperTypeName}::new(vector : @client.ImmutVector[${typeName}]) -> ${wrapperTypeName} {\n`,
       );
       out.push(
-        `  { vector: @client.KeyedVector::new(vector, ${specVarName}) }\n`,
+        `  { vector: @client.Internal_KeyedVector::new(vector, ${specVarName}) }\n`,
       );
       out.push("}\n\n");
 
@@ -641,12 +641,14 @@ class MoonbitSourceFileGenerator {
         `pub fn ${wrapperTypeName}::from_array(items : Array[${typeName}]) -> ${wrapperTypeName} {\n`,
       );
       out.push(
-        `  { vector: @client.KeyedVector::from_array(items, ${specVarName}) }\n`,
+        `  { vector: @client.Internal_KeyedVector::from_array(items, ${specVarName}) }\n`,
       );
       out.push("}\n\n");
 
       out.push(`pub fn ${wrapperTypeName}::empty() -> ${wrapperTypeName} {\n`);
-      out.push(`  { vector: @client.KeyedVector::empty(${specVarName}) }\n`);
+      out.push(
+        `  { vector: @client.Internal_KeyedVector::empty(${specVarName}) }\n`,
+      );
       out.push("}\n\n");
 
       out.push(

@@ -1,41 +1,41 @@
-pub(all) struct KeyedVectorSpec[T, K] {
+pub(all) struct Internal_KeyedVectorSpec[T, K] {
   get_key : (T) -> K
   key_extractor : String
   default_item : T
 }
 
-pub struct KeyedVector[T, K] {
+pub struct Internal_KeyedVector[T, K] {
   vector : @immut_vector.Vector[T]
-  priv spec : KeyedVectorSpec[T, K]
+  priv spec : Internal_KeyedVectorSpec[T, K]
   priv mut index : @hashmap.HashMap[K, T]?
 }
 
-pub fn[T, K] KeyedVector::new(
+pub fn[T, K] Internal_KeyedVector::new(
   vector : @immut_vector.Vector[T],
-  spec : KeyedVectorSpec[T, K],
-) -> KeyedVector[T, K] {
+  spec : Internal_KeyedVectorSpec[T, K],
+) -> Internal_KeyedVector[T, K] {
   { vector, spec, index: None }
 }
 
-pub fn[T, K] KeyedVector::from_array(
+pub fn[T, K] Internal_KeyedVector::from_array(
   items : Array[T],
-  spec : KeyedVectorSpec[T, K],
-) -> KeyedVector[T, K] {
-  KeyedVector::new(@immut_vector.Vector::from_array(items), spec)
+  spec : Internal_KeyedVectorSpec[T, K],
+) -> Internal_KeyedVector[T, K] {
+  Internal_KeyedVector::new(@immut_vector.Vector::from_array(items), spec)
 }
 
-pub fn[T, K] KeyedVector::empty(spec : KeyedVectorSpec[T, K]) -> KeyedVector[T, K] {
-  KeyedVector::new(@immut_vector.Vector::new(), spec)
+pub fn[T, K] Internal_KeyedVector::empty(spec : Internal_KeyedVectorSpec[T, K]) -> Internal_KeyedVector[T, K] {
+  Internal_KeyedVector::new(@immut_vector.Vector::new(), spec)
 }
 
-fn[T, K] KeyedVector::has_index(self : KeyedVector[T, K]) -> Bool {
+fn[T, K] Internal_KeyedVector::has_index(self : Internal_KeyedVector[T, K]) -> Bool {
   match self.index {
     Some(_) => true
     None => false
   }
 }
 
-fn[T, K : Hash + Eq] KeyedVector::build_index(self : KeyedVector[T, K]) -> @hashmap.HashMap[K, T] {
+fn[T, K : Hash + Eq] Internal_KeyedVector::build_index(self : Internal_KeyedVector[T, K]) -> @hashmap.HashMap[K, T] {
   let index : @hashmap.HashMap[K, T] = @hashmap.HashMap([], capacity=self.vector.length())
   for item in self.vector.iter() {
     let key = (self.spec.get_key)(item)
@@ -45,7 +45,7 @@ fn[T, K : Hash + Eq] KeyedVector::build_index(self : KeyedVector[T, K]) -> @hash
   index
 }
 
-fn[T, K : Hash + Eq] KeyedVector::ensure_index(self : KeyedVector[T, K]) -> @hashmap.HashMap[K, T] {
+fn[T, K : Hash + Eq] Internal_KeyedVector::ensure_index(self : Internal_KeyedVector[T, K]) -> @hashmap.HashMap[K, T] {
   match self.index {
     Some(index) => index
     None => {
@@ -57,12 +57,12 @@ fn[T, K : Hash + Eq] KeyedVector::ensure_index(self : KeyedVector[T, K]) -> @has
   }
 }
 
-pub fn[T, K : Hash + Eq] KeyedVector::find_by_key(self : KeyedVector[T, K], key : K) -> T? {
+pub fn[T, K : Hash + Eq] Internal_KeyedVector::find_by_key(self : Internal_KeyedVector[T, K], key : K) -> T? {
   self.ensure_index().get(key)
 }
 
-pub fn[T, K : Hash + Eq] KeyedVector::find_by_key_or_default(
-  self : KeyedVector[T, K],
+pub fn[T, K : Hash + Eq] Internal_KeyedVector::find_by_key_or_default(
+  self : Internal_KeyedVector[T, K],
   key : K,
 ) -> T {
   match self.find_by_key(key) {
@@ -76,8 +76,8 @@ priv struct MockItem {
   value : Int
 }
 
-fn mock_spec() -> KeyedVectorSpec[MockItem, String] {
-  KeyedVectorSpec::{
+fn mock_spec() -> Internal_KeyedVectorSpec[MockItem, String] {
+  Internal_KeyedVectorSpec::{
     get_key: fn(item : MockItem) { item.key },
     key_extractor: "key",
     default_item: { key: "", value: 0 },
@@ -91,12 +91,12 @@ fn[T : Eq] assert_eq_kv(lhs : T, rhs : T) -> Unit {
 }
 
 test "keyed_vector_starts_without_index" {
-  let kv = KeyedVector::from_array([{ key: "a", value: 1 }], mock_spec())
+  let kv = Internal_KeyedVector::from_array([{ key: "a", value: 1 }], mock_spec())
   assert_eq_kv(kv.has_index(), false)
 }
 
 test "find_by_key_builds_index_and_returns_value" {
-  let kv = KeyedVector::from_array(
+  let kv = Internal_KeyedVector::from_array(
     [{ key: "a", value: 1 }, { key: "b", value: 2 }],
     mock_spec(),
   )
@@ -108,12 +108,12 @@ test "find_by_key_builds_index_and_returns_value" {
 }
 
 test "find_by_key_returns_none_when_missing" {
-  let kv = KeyedVector::from_array([{ key: "a", value: 1 }], mock_spec())
+  let kv = Internal_KeyedVector::from_array([{ key: "a", value: 1 }], mock_spec())
   assert_eq_kv(kv.find_by_key("missing") is None, true)
 }
 
 test "find_by_key_keeps_last_duplicate" {
-  let kv = KeyedVector::from_array(
+  let kv = Internal_KeyedVector::from_array(
     [{ key: "dup", value: 1 }, { key: "dup", value: 2 }],
     mock_spec(),
   )
@@ -124,16 +124,16 @@ test "find_by_key_keeps_last_duplicate" {
 }
 
 test "find_by_key_or_default_uses_spec_default_item" {
-  let kv = KeyedVector::from_array([{ key: "a", value: 1 }], mock_spec())
+  let kv = Internal_KeyedVector::from_array([{ key: "a", value: 1 }], mock_spec())
   let v = kv.find_by_key_or_default("missing")
   assert_eq_kv(v.key, "")
   assert_eq_kv(v.value, 0)
 }
 
-pub impl[T : Eq, K] Eq for KeyedVector[T, K] with equal(self, other) {
+pub impl[T : Eq, K] Eq for Internal_KeyedVector[T, K] with equal(self, other) {
   self.vector == other.vector
 }
 
-pub impl[T : Debug, K] Debug for KeyedVector[T, K] with to_repr(self) {
+pub impl[T : Debug, K] Debug for Internal_KeyedVector[T, K] with to_repr(self) {
   Debug::to_repr(self.vector)
 }
