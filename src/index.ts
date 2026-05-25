@@ -1,12 +1,11 @@
+// TODO: generate doc for client...
+// TODO: add unit tests
 // TODO: make Serializer.adapter private?
+// TODO: organize client lib...
 // TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
 // TODO: remove UnrecognizedValues enum, use named parameter for bool
 // TODO: figure out what symbols to actually export
 // TODO: make them comparable, renderable, etc.
-// TODO: KeyedArray...
-// TODO: remove all the weird logic which looks at "removed"...
-// TODO: rm recursive_default, unrecognized_variant_default, timestamp_defaultake Timestamp much better...
-// TODO: move things like StructAdapter to internal...?
 
 import {
   convertCase,
@@ -14,7 +13,6 @@ import {
   type Constant,
   type Doc,
   type Field,
-  type ImportedNames,
   type Method,
   type Module,
   type RecordKey,
@@ -259,7 +257,7 @@ class MoonbitSourceFileGenerator {
 
     if (isRecursive) {
       out.push(
-        `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = @runtime.StructAdapter::new(\n`,
+        `let ${adapterVarName} : @client.StructAdapter[${typeName}] = @client.StructAdapter::new(\n`,
       );
       out.push(`  ${recordIdLiteral},\n`);
       out.push('  "",\n');
@@ -286,26 +284,26 @@ class MoonbitSourceFileGenerator {
       this.initStatements.push(`${adapterVarName}.finalize()`);
 
       out.push(
-        `pub fn ${typeName}::serializer() -> @runtime.Serializer[${typeName}] {\n`,
+        `pub fn ${typeName}::serializer() -> @client.Serializer[${typeName}] {\n`,
       );
       out.push(`  ${adapterVarName}.serializer()\n`);
       out.push("}\n\n");
     } else {
       const adapterInitFnName = `${adapterVarName}__init`;
       out.push(
-        `pub fn ${typeName}::serializer() -> @runtime.Serializer[${typeName}] {\n`,
+        `pub fn ${typeName}::serializer() -> @client.Serializer[${typeName}] {\n`,
       );
       out.push(`  ${adapterVarName}.serializer()\n`);
       out.push("}\n\n");
 
       out.push(
-        `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
+        `let ${adapterVarName} : @client.StructAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
       );
 
       out.push(
-        `fn ${adapterInitFnName}() -> @runtime.StructAdapter[${typeName}] {\n`,
+        `fn ${adapterInitFnName}() -> @client.StructAdapter[${typeName}] {\n`,
       );
-      out.push("  let adapter = @runtime.StructAdapter::new(\n");
+      out.push("  let adapter = @client.StructAdapter::new(\n");
       out.push(`    ${recordIdLiteral},\n`);
       out.push('    "",\n');
       out.push(`    ${recordDocLiteral},\n`);
@@ -427,7 +425,7 @@ class MoonbitSourceFileGenerator {
 
     if (isRecursive) {
       out.push(
-        `let ${adapterVarName} : @runtime.EnumAdapter[${typeName}] = @runtime.EnumAdapter::new(\n`,
+        `let ${adapterVarName} : @client.EnumAdapter[${typeName}] = @client.EnumAdapter::new(\n`,
       );
       out.push(`  ${recordIdLiteral},\n`);
       out.push('  "",\n');
@@ -476,9 +474,9 @@ class MoonbitSourceFileGenerator {
     } else {
       const adapterInitFnName = `${adapterVarName}__init`;
       out.push(
-        `fn ${adapterInitFnName}() -> @runtime.EnumAdapter[${typeName}] {\n`,
+        `fn ${adapterInitFnName}() -> @client.EnumAdapter[${typeName}] {\n`,
       );
-      out.push("  let adapter = @runtime.EnumAdapter::new(\n");
+      out.push("  let adapter = @client.EnumAdapter::new(\n");
       out.push(`    ${recordIdLiteral},\n`);
       out.push('    "",\n');
       out.push(`    ${recordDocLiteral},\n`);
@@ -524,12 +522,12 @@ class MoonbitSourceFileGenerator {
       out.push("}\n\n");
 
       out.push(
-        `let ${adapterVarName} : @runtime.EnumAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
+        `let ${adapterVarName} : @client.EnumAdapter[${typeName}] = ${adapterInitFnName}()\n\n`,
       );
     }
 
     out.push(
-      `pub fn ${typeName}::serializer() -> @runtime.Serializer[${typeName}] {\n`,
+      `pub fn ${typeName}::serializer() -> @client.Serializer[${typeName}] {\n`,
     );
     out.push(`  ${adapterVarName}.serializer()\n`);
     out.push("}\n\n");
@@ -580,15 +578,15 @@ class MoonbitSourceFileGenerator {
 
     out.push(commentify(docToCommentText(method.doc)));
     out.push(
-      `pub fn ${methodName}() -> @client.Method[${requestType}, ${responseType}] {\n`,
+      `pub let ${methodName} : @client.Method[${requestType}, ${responseType}] = {\n`,
     );
-    out.push("  {\n");
-    out.push(`    name: ${toMoonbitStringLiteral(method.name.text)},\n`);
-    out.push(`    number: ${method.number},\n`);
-    out.push(`    request_serializer: ${requestSerializer},\n`);
-    out.push(`    response_serializer: ${responseSerializer},\n`);
-    out.push(`    doc: ${toMoonbitStringLiteral(docToCommentText(method.doc))},\n`);
-    out.push("  }\n");
+    out.push(`  name: ${toMoonbitStringLiteral(method.name.text)},\n`);
+    out.push(`  number: ${method.number},\n`);
+    out.push(`  request_serializer: ${requestSerializer},\n`);
+    out.push(`  response_serializer: ${responseSerializer},\n`);
+    out.push(
+      `  doc: ${toMoonbitStringLiteral(docToCommentText(method.doc))},\n`,
+    );
     out.push("}\n\n");
   }
 
@@ -669,10 +667,6 @@ class MoonbitSourceFileGenerator {
     return fields.some((field) => !!field.isRecursive);
   }
 
-  private getRecordNamespace(): string {
-    return this.inModule.path.replace(/\.skir$/, "").replace(/\//g, ".");
-  }
-
   private toMoonbitStringLiteral(value: string): string {
     return JSON.stringify(value);
   }
@@ -682,30 +676,30 @@ class MoonbitSourceFileGenerator {
       case "primitive": {
         switch (type.primitive) {
           case "bool":
-            return "@runtime.bool_serializer()";
+            return "@client.bool_serializer()";
           case "int32":
-            return "@runtime.int32_serializer()";
+            return "@client.int32_serializer()";
           case "int64":
-            return "@runtime.int64_serializer()";
+            return "@client.int64_serializer()";
           case "hash64":
-            return "@runtime.hash64_serializer()";
+            return "@client.hash64_serializer()";
           case "float32":
-            return "@runtime.float32_serializer()";
+            return "@client.float32_serializer()";
           case "float64":
-            return "@runtime.float64_serializer()";
+            return "@client.float64_serializer()";
           case "timestamp":
-            return "@runtime.timestamp_serializer()";
+            return "@client.timestamp_serializer()";
           case "string":
-            return "@runtime.string_serializer()";
+            return "@client.string_serializer()";
           case "bytes":
-            return "@runtime.bytes_serializer()";
+            return "@client.bytes_serializer()";
         }
         throw new Error(`Unsupported primitive serializer: ${type.primitive}`);
       }
       case "optional":
-        return `@runtime.optional_serializer(${this.getSerializerExpr(type.other)})`;
+        return `@client.optional_serializer(${this.getSerializerExpr(type.other)})`;
       case "array":
-        return `@runtime.vector_serializer(${this.getSerializerExpr(type.item)})`;
+        return `@client.vector_serializer(${this.getSerializerExpr(type.item)})`;
       case "record": {
         const recordLocation = this.typeSpeller.recordMap.get(type.key)!;
         const recordTypeName = getTypeName(recordLocation);
@@ -731,9 +725,9 @@ class MoonbitSourceFileGenerator {
 
     const serializerExpr =
       field.isRecursive === "hard"
-        ? `@runtime.recursive_serializer(${this.getSerializerExpr(resolvedType)})`
+        ? `@client.recursive_serializer(${this.getSerializerExpr(resolvedType)})`
         : isKeyedArrayField
-          ? `@runtime.keyed_vector_serializer(${this.getSerializerExpr(resolvedType.item)}, ${this.toMoonbitStringLiteral(resolvedType.key!.path.map((part) => part.name.text).join("."))})`
+          ? `@client.keyed_vector_serializer(${this.getSerializerExpr(resolvedType.item)}, ${this.toMoonbitStringLiteral(resolvedType.key!.path.map((part) => part.name.text).join("."))})`
           : this.getSerializerExpr(resolvedType);
 
     const normalFieldType = this.typeSpeller.getMoonbitFieldType(field);
@@ -773,26 +767,16 @@ export const GENERATOR = new MoonbitCodeGenerator();
 function generateMoonPkg(module: Module): string {
   const imports: string[] = [];
   imports.push(`  "${CLIENT_PACKAGE_PATH}" @client,`);
-  imports.push(`  "${CLIENT_RUNTIME_PACKAGE_PATH}" @runtime,`);
   imports.push(`  "moonbitlang/core/builtin" @builtin,`);
   imports.push(`  "moonbitlang/core/debug" @debug,`);
 
-  for (const [importedPath, importedNames] of Object.entries(
-    module.pathToImportedNames,
-  )) {
-    if (!shouldImportModule(importedNames)) {
-      continue;
-    }
+  for (const importedPath of Object.keys(module.pathToImportedNames)) {
     const alias = modulePathToAlias(importedPath);
     const packageDir = modulePathToPackageDir(importedPath);
     imports.push(`  "${SKIROUT_PACKAGE_PREFIX}/${packageDir}" @${alias},`);
   }
 
   return `import {\n${imports.join("\n")}\n}\n`;
-}
-
-function shouldImportModule(importedNames: ImportedNames): boolean {
-  return importedNames.kind === "all" || importedNames.names.size > 0;
 }
 
 function commentify(textOrLines: string | readonly string[]): string {
@@ -828,5 +812,4 @@ function toMoonbitStringLiteral(value: string): string {
 }
 
 const SKIROUT_PACKAGE_PREFIX = "skir/e2e-tests/skirout";
-const CLIENT_PACKAGE_PATH = "skir/e2e-tests/client/types";
-const CLIENT_RUNTIME_PACKAGE_PATH = "skir/e2e-tests/client";
+const CLIENT_PACKAGE_PATH = "skir/e2e-tests/client/gen";

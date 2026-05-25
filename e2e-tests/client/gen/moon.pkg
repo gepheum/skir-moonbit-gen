@@ -1,0 +1,4 @@
+import {
+	"skir/e2e-tests/client" @runtime,
+	"moonbitlang/core/immut/vector" @immut_vector,
+}

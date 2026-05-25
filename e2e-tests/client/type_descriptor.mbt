@@ -215,7 +215,9 @@ fn parse_record(item : Json) -> Result[RecordDescriptor, String] {
           )
         }
         None => {
-          variants.push(EnumVariant::Constant({ name, number, doc: variant_doc }))
+          variants.push(
+            EnumVariant::Constant({ name, number, doc: variant_doc }),
+          )
         }
       }
     }
@@ -415,7 +417,9 @@ fn struct_field_to_json(f : StructField, indent : String) -> String {
   let lines : Array[String] = []
   lines.push(inner + "\"name\": " + quote_json_string(f.name))
   lines.push(inner + "\"number\": " + f.number.to_string())
-  lines.push(inner + "\"type\": " + type_signature_to_json(f.field_type, inner))
+  lines.push(
+    inner + "\"type\": " + type_signature_to_json(f.field_type, inner),
+  )
   if f.doc != "" {
     lines.push(inner + "\"doc\": " + quote_json_string(f.doc))
   }
@@ -438,7 +442,9 @@ fn enum_variant_to_json(v : EnumVariant, indent : String) -> String {
       let lines : Array[String] = []
       lines.push(inner + "\"name\": " + quote_json_string(w.name))
       lines.push(inner + "\"number\": " + w.number.to_string())
-      lines.push(inner + "\"type\": " + type_signature_to_json(w.variant_type, inner))
+      lines.push(
+        inner + "\"type\": " + type_signature_to_json(w.variant_type, inner),
+      )
       if w.doc != "" {
         lines.push(inner + "\"doc\": " + quote_json_string(w.doc))
       }

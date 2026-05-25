@@ -140,32 +140,32 @@ export class TypeSpeller {
       }
       case "array": {
         const itemSerializer = this.getMoonbitSerializerExpr(type.item);
-        return `@runtime.vector_serializer(${itemSerializer})`;
+        return `@client.vector_serializer(${itemSerializer})`;
       }
       case "optional": {
         const otherSerializer = this.getMoonbitSerializerExpr(type.other);
-        return `@runtime.optional_serializer(${otherSerializer})`;
+        return `@client.optional_serializer(${otherSerializer})`;
       }
       case "primitive": {
         switch (type.primitive) {
           case "bool":
-            return "@runtime.bool_serializer()";
+            return "@client.bool_serializer()";
           case "int32":
-            return "@runtime.int32_serializer()";
+            return "@client.int32_serializer()";
           case "int64":
-            return "@runtime.int64_serializer()";
+            return "@client.int64_serializer()";
           case "hash64":
-            return "@runtime.hash64_serializer()";
+            return "@client.hash64_serializer()";
           case "float32":
-            return "@runtime.float32_serializer()";
+            return "@client.float32_serializer()";
           case "float64":
-            return "@runtime.float64_serializer()";
+            return "@client.float64_serializer()";
           case "timestamp":
-            return "@runtime.timestamp_serializer()";
+            return "@client.timestamp_serializer()";
           case "string":
-            return "@runtime.string_serializer()";
+            return "@client.string_serializer()";
           case "bytes":
-            return "@runtime.bytes_serializer()";
+            return "@client.bytes_serializer()";
         }
       }
     }
