@@ -3,23 +3,6 @@ pub struct Timestamp {
   priv unix_millis : Int64
 }
 
-let min_timestamp_millis : Int64 = -8640000000000000L
-let max_timestamp_millis : Int64 = 8640000000000000L
-
-let timestamp_unix_epoch : Timestamp = { unix_millis: 0L }
-let timestamp_min : Timestamp = { unix_millis: min_timestamp_millis }
-let timestamp_max : Timestamp = { unix_millis: max_timestamp_millis }
-
-fn clamp_timestamp_millis(ms : Int64) -> Int64 {
-  if ms < min_timestamp_millis {
-    min_timestamp_millis
-  } else if ms > max_timestamp_millis {
-    max_timestamp_millis
-  } else {
-    ms
-  }
-}
-
 /// Creates a Timestamp from Unix milliseconds.
 pub fn Timestamp::from_unix_millis(ms : Int64) -> Timestamp {
   { unix_millis: clamp_timestamp_millis(ms) }
@@ -58,37 +41,6 @@ pub fn Timestamp::unix_millis(self : Timestamp) -> Int64 {
 /// Returns the Unix seconds representation.
 pub fn Timestamp::unix_seconds(self : Timestamp) -> Double {
   self.unix_millis.to_double() / 1000.0
-}
-
-fn int64_div_euclid(a : Int64, b : Int64) -> Int64 {
-  let q = a / b
-  let r = a % b
-  if r < 0L {
-    if b > 0L {
-      q - 1L
-    } else {
-      q + 1L
-    }
-  } else {
-    q
-  }
-}
-
-fn int64_rem_euclid(a : Int64, b : Int64) -> Int64 {
-  a - int64_div_euclid(a, b) * b
-}
-
-fn zero_pad(n : Int, width : Int) -> String {
-  let s = n.to_string()
-  if s.length() >= width {
-    s
-  } else {
-    let mut out = ""
-    for _ in 0..<(width - s.length()) {
-      out += "0"
-    }
-    out + s
-  }
 }
 
 /// Formats the Timestamp as ISO8601 string.
@@ -156,6 +108,54 @@ pub impl Compare for Timestamp with compare(self, other) {
 
 pub impl Debug for Timestamp with to_repr(self) {
   Debug::to_repr(self.unix_millis)
+}
+
+let min_timestamp_millis : Int64 = -8640000000000000L
+let max_timestamp_millis : Int64 = 8640000000000000L
+
+let timestamp_unix_epoch : Timestamp = { unix_millis: 0L }
+let timestamp_min : Timestamp = { unix_millis: min_timestamp_millis }
+let timestamp_max : Timestamp = { unix_millis: max_timestamp_millis }
+
+fn clamp_timestamp_millis(ms : Int64) -> Int64 {
+  if ms < min_timestamp_millis {
+    min_timestamp_millis
+  } else if ms > max_timestamp_millis {
+    max_timestamp_millis
+  } else {
+    ms
+  }
+}
+
+fn int64_div_euclid(a : Int64, b : Int64) -> Int64 {
+  let q = a / b
+  let r = a % b
+  if r < 0L {
+    if b > 0L {
+      q - 1L
+    } else {
+      q + 1L
+    }
+  } else {
+    q
+  }
+}
+
+fn int64_rem_euclid(a : Int64, b : Int64) -> Int64 {
+  a - int64_div_euclid(a, b) * b
+}
+
+fn zero_pad(n : Int, width : Int) -> String {
+  let s = n.to_string()
+  if s.length() >= width {
+    s
+  } else {
+    let mut out = ""
+    for _ in 0..<(width - s.length()) {
+      out += "0"
+    }
+    out + s
+  }
 }
 
 fn[T : Eq] assert_eq_ts(lhs : T, rhs : T) -> Unit {
