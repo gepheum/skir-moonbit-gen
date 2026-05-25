@@ -215,14 +215,6 @@ fn[T] EnumAdapter::entry_at_kind(self : EnumAdapter[T], ko : Int) -> EnumVariant
   }
 }
 
-fn enum_bytes_to_utf8_or_default(bytes : Bytes) -> String {
-  try {
-    @utf8.decode(bytes[:])
-  } catch {
-    _ => ""
-  }
-}
-
 fn enum_int_array_to_bytes(bytes : Array[Int]) -> Bytes {
   let out : Array[Byte] = []
   for b in bytes {
@@ -270,18 +262,25 @@ pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
       if ko == 0 {
         match (self.get_unrecognized)(input) {
           Some(u) => {
-            if u.format == UnrecognizedFormat::DenseJson && !u.value.is_empty() {
-              out.write_string(enum_bytes_to_utf8_or_default(u.value))
-              return
-            }
-            if u.format == UnrecognizedFormat::Bytes {
-              match self.number_to_entry.get(u.number) {
-                Some(_) => {
-                  out.write_string(u.number.to_string())
-                  return
-                }
-                None => ()
+            match u.dense_json() {
+              Some(json) => {
+                out.write_string(json.stringify())
+                return
               }
+              None =>
+                match u.bytes() {
+                  Some(bytes) =>
+                if !bytes.is_empty() {
+                  match self.number_to_entry.get(u.number()) {
+                    Some(_) => {
+                      out.write_string(u.number().to_string())
+                      return
+                    }
+                    None => ()
+                  }
+                }
+                  None => ()
+                }
             }
           }
           None => ()
@@ -329,7 +328,7 @@ pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
               }
             None =>
               if keep {
-                Ok((self.wrap_unrecognized)(unrecognized_variant_from_json(number, @utf8.encode(json.stringify()))))
+                Ok((self.wrap_unrecognized)(unrecognized_variant_from_json(number, json)))
               } else {
                 Ok(self.default_value)
               }
@@ -398,7 +397,7 @@ pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
               }
             None =>
               if keep {
-                Ok((self.wrap_unrecognized)(unrecognized_variant_from_json(number, @utf8.encode(json.stringify()))))
+                Ok((self.wrap_unrecognized)(unrecognized_variant_from_json(number, json)))
               } else {
                 Ok(self.default_value)
               }
@@ -435,10 +434,14 @@ pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
       let ko = (self.get_kind_ordinal)(input)
       if ko == 0 {
         match (self.get_unrecognized)(input) {
-          Some(u) if u.format == UnrecognizedFormat::Bytes && !u.value.is_empty() => {
-            let out = out0
-            out.write_bytes(u.value)
-          }
+          Some(u) =>
+            match u.bytes() {
+              Some(bytes) if !bytes.is_empty() => {
+                let out = out0
+                out.write_bytes(bytes)
+              }
+              _ => out0.write_int(0)
+            }
           _ => out0.write_int(0)
         }
       } else {

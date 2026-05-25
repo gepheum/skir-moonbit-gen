@@ -136,13 +136,17 @@ fn[T] StructAdapter::get_slot_count(self : StructAdapter[T], input : T) -> Int {
 fn[T] StructAdapter::to_dense_json_impl(self : StructAdapter[T], input : T, out : StringBuilder) -> Unit {
   let unrecognized = (self.get_unrecognized)(input)
   let mut total_slot_count = self.get_slot_count(input)
-  let mut extra_json = ""
+  let mut extra_values : Array[Json] = []
 
   match unrecognized {
-    Some(u) if u.format == UnrecognizedFormat::DenseJson => {
-      total_slot_count = u.array_len
-        extra_json = struct_bytes_to_utf8_or_default(u.values)
-    }
+    Some(u) =>
+      match u.dense_json() {
+        Some(Json::Array(values)) => {
+          total_slot_count = u.array_len()
+          extra_values = values
+        }
+        _ => ()
+      }
     _ => ()
   }
 
@@ -158,11 +162,13 @@ fn[T] StructAdapter::to_dense_json_impl(self : StructAdapter[T], input : T, out 
     }
   }
 
-  if total_slot_count > recognized_max && extra_json != "" {
-    if recognized_max > 0 {
-      out.write_char(',')
+  if total_slot_count > recognized_max && !extra_values.is_empty() {
+    for i in 0..<extra_values.length() {
+      if recognized_max > 0 || i > 0 {
+        out.write_char(',')
+      }
+      out.write_string(extra_values[i].stringify())
     }
-    out.write_string(extra_json)
   }
   out.write_char(']')
 }
@@ -187,16 +193,15 @@ fn[T] StructAdapter::from_dense_json_impl(
   if struct_should_keep_unrecognized(policy) {
     let recognized_max = self.slot_to_index.length()
     if arr.length() > recognized_max {
-      let mut extra = ""
-      let mut first = true
+      let mut extra = "["
       for i in recognized_max..<arr.length() {
-        if !first {
+        if i > recognized_max {
           extra = extra + ","
         }
-        first = false
         extra = extra + arr[i].stringify()
       }
-      let ud = unrecognized_fields_from_json(arr.length(), @utf8.encode(extra))
+      extra = extra + "]"
+      let ud = unrecognized_fields_from_json(arr.length(), parse_json(extra))
       (self.set_unrecognized)(value, Some(ud))
     }
   }
@@ -225,14 +230,6 @@ fn[T] StructAdapter::from_readable_json_impl(
       Ok(value)
     }
     _ => Ok((self.default_value)())
-  }
-}
-
-fn struct_bytes_to_utf8_or_default(bytes : Bytes) -> String {
-  try {
-    @utf8.decode(bytes[:])
-  } catch {
-    _ => ""
   }
 }
 
@@ -381,10 +378,14 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
       let mut total_slot_count = self.get_slot_count(input)
       let mut extra_bytes = Bytes::default()
       match unrecognized {
-        Some(u) if u.format == UnrecognizedFormat::Bytes => {
-          total_slot_count = u.array_len
-          extra_bytes = u.values
-        }
+        Some(u) =>
+          match u.bytes() {
+            Some(values) => {
+              total_slot_count = u.array_len()
+              extra_bytes = values
+            }
+            _ => ()
+          }
         _ => ()
       }
 
