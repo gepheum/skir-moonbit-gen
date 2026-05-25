@@ -1,11 +1,11 @@
 pub struct Internal_EnumAdapter[T] {
-  module_path : String
-  qualified_name : String
-  doc : String
-  default_value : T
-  get_kind_ordinal : (T) -> Int
-  wrap_unrecognized : (UnrecognizedVariant) -> T
-  get_unrecognized : (T) -> UnrecognizedVariant?
+  priv module_path : String
+  priv qualified_name : String
+  priv doc : String
+  priv default_value : T
+  priv get_kind_ordinal : (T) -> Int
+  priv wrap_unrecognized : (UnrecognizedVariant) -> T
+  priv get_unrecognized : (T) -> UnrecognizedVariant?
   priv number_to_entry : @hashmap.HashMap[Int, EnumAnyEntry]
   priv removed_numbers : Array[Int]
   priv name_to_kind_ordinal : @hashmap.HashMap[String, Int]
