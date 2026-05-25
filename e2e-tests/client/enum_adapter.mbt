@@ -4,8 +4,8 @@ pub struct Internal_EnumAdapter[T] {
   priv doc : String
   priv default_value : T
   priv get_kind_ordinal : (T) -> Int
-  priv wrap_unrecognized : (UnrecognizedVariant) -> T
-  priv get_unrecognized : (T) -> UnrecognizedVariant?
+  priv wrap_unrecognized : (Internal_UnrecognizedVariant) -> T
+  priv get_unrecognized : (T) -> Internal_UnrecognizedVariant?
   priv number_to_entry : @hashmap.HashMap[Int, EnumAnyEntry]
   priv removed_numbers : Array[Int]
   priv name_to_kind_ordinal : @hashmap.HashMap[String, Int]
@@ -19,8 +19,8 @@ pub fn[T] Internal_EnumAdapter::new(
   doc : String,
   default_value : T,
   get_kind_ordinal : (T) -> Int,
-  wrap_unrecognized : (UnrecognizedVariant) -> T,
-  get_unrecognized : (T) -> UnrecognizedVariant?,
+  wrap_unrecognized : (Internal_UnrecognizedVariant) -> T,
+  get_unrecognized : (T) -> Internal_UnrecognizedVariant?,
 ) -> Internal_EnumAdapter[T] {
   {
     module_path,

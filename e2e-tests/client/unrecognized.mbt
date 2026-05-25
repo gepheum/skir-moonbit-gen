@@ -1,9 +1,9 @@
-pub struct UnrecognizedFields {
+pub struct Internal_UnrecognizedFields {
   priv format : UnrecognizedFormat
   priv array_len : Int
 }
 
-pub struct UnrecognizedVariant {
+pub struct Internal_UnrecognizedVariant {
   priv format : UnrecognizedFormat
   priv number : Int
 }
@@ -16,7 +16,7 @@ priv enum UnrecognizedFormat {
 fn unrecognized_fields_from_json(
   array_len : Int,
   json : Json
-) -> UnrecognizedFields {
+) -> Internal_UnrecognizedFields {
   {
     format: UnrecognizedFormat::DenseJson(json),
     array_len,
@@ -26,25 +26,25 @@ fn unrecognized_fields_from_json(
 fn unrecognized_fields_from_bytes(
   array_len : Int,
   raw_bytes : Bytes
-) -> UnrecognizedFields {
+) -> Internal_UnrecognizedFields {
   {
     format: UnrecognizedFormat::Bytes(raw_bytes),
     array_len,
   }
 }
 
-fn UnrecognizedFields::array_len(self : UnrecognizedFields) -> Int {
+fn Internal_UnrecognizedFields::array_len(self : Internal_UnrecognizedFields) -> Int {
   self.array_len
 }
 
-fn UnrecognizedFields::dense_json(self : UnrecognizedFields) -> Json? {
+fn Internal_UnrecognizedFields::dense_json(self : Internal_UnrecognizedFields) -> Json? {
   match self.format {
     UnrecognizedFormat::DenseJson(json) => Some(json)
     _ => None
   }
 }
 
-fn UnrecognizedFields::bytes(self : UnrecognizedFields) -> Bytes? {
+fn Internal_UnrecognizedFields::bytes(self : Internal_UnrecognizedFields) -> Bytes? {
   match self.format {
     UnrecognizedFormat::Bytes(bytes) => Some(bytes)
     _ => None
@@ -54,7 +54,7 @@ fn UnrecognizedFields::bytes(self : UnrecognizedFields) -> Bytes? {
 fn unrecognized_variant_from_bytes(
   number : Int,
   raw_bytes : Bytes
-) -> UnrecognizedVariant {
+) -> Internal_UnrecognizedVariant {
   {
     format: UnrecognizedFormat::Bytes(raw_bytes),
     number,
@@ -64,45 +64,45 @@ fn unrecognized_variant_from_bytes(
 fn unrecognized_variant_from_json(
   number : Int,
   json : Json
-) -> UnrecognizedVariant {
+) -> Internal_UnrecognizedVariant {
   {
     format: UnrecognizedFormat::DenseJson(json),
     number,
   }
 }
 
-fn UnrecognizedVariant::number(self : UnrecognizedVariant) -> Int {
+fn Internal_UnrecognizedVariant::number(self : Internal_UnrecognizedVariant) -> Int {
   self.number
 }
 
-fn UnrecognizedVariant::dense_json(self : UnrecognizedVariant) -> Json? {
+fn Internal_UnrecognizedVariant::dense_json(self : Internal_UnrecognizedVariant) -> Json? {
   match self.format {
     UnrecognizedFormat::DenseJson(json) => Some(json)
     _ => None
   }
 }
 
-fn UnrecognizedVariant::bytes(self : UnrecognizedVariant) -> Bytes? {
+fn Internal_UnrecognizedVariant::bytes(self : Internal_UnrecognizedVariant) -> Bytes? {
   match self.format {
     UnrecognizedFormat::Bytes(bytes) => Some(bytes)
     _ => None
   }
 }
 
-pub impl Eq for UnrecognizedFields with equal(self, other) {
+pub impl Eq for Internal_UnrecognizedFields with equal(self, other) {
   self.format == other.format &&
   self.array_len == other.array_len
 }
 
-pub impl Debug for UnrecognizedFields with to_repr(self) {
+pub impl Debug for Internal_UnrecognizedFields with to_repr(self) {
   Debug::to_repr(self.format)
 }
 
-pub impl Eq for UnrecognizedVariant with equal(self, other) {
+pub impl Eq for Internal_UnrecognizedVariant with equal(self, other) {
   self.format == other.format &&
   self.number == other.number
 }
 
-pub impl Debug for UnrecognizedVariant with to_repr(self) {
+pub impl Debug for Internal_UnrecognizedVariant with to_repr(self) {
   Debug::to_repr(self.format)
 }

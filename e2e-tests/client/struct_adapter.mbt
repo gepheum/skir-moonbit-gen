@@ -4,8 +4,8 @@ pub struct Internal_StructAdapter[T, Mutable] {
   priv doc : String
   priv new_mutable : () -> Mutable
   priv to_frozen : (Mutable) -> T
-  priv get_unrecognized : (T) -> UnrecognizedFields?
-  priv set_unrecognized : (Mutable, UnrecognizedFields?) -> Unit
+  priv get_unrecognized : (T) -> Internal_UnrecognizedFields?
+  priv set_unrecognized : (Mutable, Internal_UnrecognizedFields?) -> Unit
   priv ordered_entries : Array[StructFieldEntry[T, Mutable]]
   priv name_to_index : @hashmap.HashMap[String, Int]
   priv slot_to_index : Array[Int?]
@@ -18,8 +18,8 @@ pub fn[T, Mutable] Internal_StructAdapter::new(
   doc : String,
   new_mutable : () -> Mutable,
   to_frozen : (Mutable) -> T,
-  get_unrecognized : (T) -> UnrecognizedFields?,
-  set_unrecognized : (Mutable, UnrecognizedFields?) -> Unit,
+  get_unrecognized : (T) -> Internal_UnrecognizedFields?,
+  set_unrecognized : (Mutable, Internal_UnrecognizedFields?) -> Unit,
 ) -> Internal_StructAdapter[T, Mutable] {
   {
     module_path,
