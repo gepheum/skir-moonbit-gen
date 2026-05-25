@@ -71,7 +71,7 @@ class MoonbitSourceFileGenerator {
     recordMap: ReadonlyMap<RecordKey, RecordLocation>,
     private readonly keyedArrayContext: KeyedArrayContext,
   ) {
-    this.typeSpeller = new TypeSpeller(recordMap, inModule.path);
+    this.typeSpeller = new TypeSpeller(recordMap, inModule);
   }
 
   generate(): string {

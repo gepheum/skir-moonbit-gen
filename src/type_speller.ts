@@ -1,6 +1,7 @@
 import type {
   ArrayType,
   Field,
+  Module,
   PrimitiveType,
   RecordKey,
   RecordLocation,
@@ -13,7 +14,7 @@ import { getTypeName, modulePathToAlias } from "./naming.js";
 export class TypeSpeller {
   constructor(
     readonly recordMap: ReadonlyMap<RecordKey, RecordLocation>,
-    readonly currentModulePath: string,
+    readonly inModule: Module,
   ) {}
 
   getMoonbitType(type: ResolvedType): string {
@@ -21,7 +22,7 @@ export class TypeSpeller {
       case "record": {
         const recordLocation = this.recordMap.get(type.key)!;
         const typeName = getTypeName(recordLocation);
-        if (recordLocation.modulePath === this.currentModulePath) {
+        if (recordLocation.modulePath === this.inModule.path) {
           return typeName;
         }
         return `@${modulePathToAlias(recordLocation.modulePath)}.${typeName}`;
@@ -42,23 +43,23 @@ export class TypeSpeller {
         const { primitive } = type;
         switch (primitive) {
           case "bool":
-            return "@client.NativeBool";
+            return this.getNativeOrBareType("NativeBool", "Bool");
           case "int32":
-            return "@client.NativeInt";
+            return this.getNativeOrBareType("NativeInt", "Int");
           case "int64":
-            return "@client.NativeInt64";
+            return this.getNativeOrBareType("NativeInt64", "Int64");
           case "hash64":
-            return "@client.NativeUInt64";
+            return this.getNativeOrBareType("NativeUInt64", "UInt64");
           case "float32":
-            return "@client.NativeFloat";
+            return this.getNativeOrBareType("NativeFloat", "Float");
           case "float64":
-            return "@client.NativeDouble";
+            return this.getNativeOrBareType("NativeDouble", "Double");
           case "timestamp":
             return "@client.Timestamp";
           case "string":
-            return "@client.NativeString";
+            return this.getNativeOrBareType("NativeString", "String");
           case "bytes":
-            return "@client.NativeBytes";
+            return this.getNativeOrBareType("NativeBytes", "Bytes");
         }
       }
     }
@@ -88,7 +89,7 @@ export class TypeSpeller {
         const defaultMethod =
           recordLocation.record.recordType === "enum" ? "unknown" : "default";
         const defaultExpr = `${typeName}::${defaultMethod}()`;
-        if (recordLocation.modulePath === this.currentModulePath) {
+        if (recordLocation.modulePath === this.inModule.path) {
           return defaultExpr;
         }
         return `@${modulePathToAlias(recordLocation.modulePath)}.${defaultExpr}`;
@@ -133,7 +134,7 @@ export class TypeSpeller {
         const recordLocation = this.recordMap.get(type.key)!;
         const typeName = getTypeName(recordLocation);
         const serializerExpr = `${typeName}::serializer()`;
-        if (recordLocation.modulePath === this.currentModulePath) {
+        if (recordLocation.modulePath === this.inModule.path) {
           return serializerExpr;
         }
         return `@${modulePathToAlias(recordLocation.modulePath)}.${serializerExpr}`;
@@ -194,10 +195,16 @@ export class TypeSpeller {
         .join("_"),
     );
     const wrapperTypeName = `${itemTypeName}${suffix}`;
-    if (itemRecordLocation.modulePath === this.currentModulePath) {
+    if (itemRecordLocation.modulePath === this.inModule.path) {
       return wrapperTypeName;
     }
     return `@${modulePathToAlias(itemRecordLocation.modulePath)}.${wrapperTypeName}`;
+  }
+
+  private getNativeOrBareType(nativeName: string, bareName: string): string {
+    return this.inModule.nameToDeclaration[bareName]
+      ? `@client.${nativeName}`
+      : bareName;
   }
 
   private keyTypeIsSupported(
