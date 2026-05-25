@@ -1,7 +1,5 @@
 // TODO: generate doc for client...
 // TODO: add unit tests
-// TODO: organize client lib...
-// TODO: make them comparable, renderable, etc.
 
 import {
   convertCase,
