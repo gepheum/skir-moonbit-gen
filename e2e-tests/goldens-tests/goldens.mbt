@@ -9,7 +9,7 @@ enum Evaluated {
   String(String)
   Bytes(Bytes)
   BoolOptional(Bool?)
-  Ints(@client.NativeArray[Int])
+  Ints(@client.ImmutVector[Int])
   Point(@goldens.Point)
   Color(@goldens.Color)
   MyEnum(@goldens.MyEnum)
@@ -49,7 +49,7 @@ fn bytes_has_prefix(payload : Array[Int], prefix : Bytes) -> Bool {
   true
 }
 
-fn string_matches_candidates(actual : String, expected : @client.NativeArray[String]) -> Bool {
+fn string_matches_candidates(actual : String, expected : @client.ImmutVector[String]) -> Bool {
   for candidate in expected.iter() {
     if actual == candidate {
       return true
@@ -58,7 +58,7 @@ fn string_matches_candidates(actual : String, expected : @client.NativeArray[Str
   false
 }
 
-fn json_matches_candidates(actual : String, expected : @client.NativeArray[String]) -> Bool {
+fn json_matches_candidates(actual : String, expected : @client.ImmutVector[String]) -> Bool {
   if string_matches_candidates(actual, expected) {
     return true
   }
@@ -80,7 +80,7 @@ fn json_matches_candidates(actual : String, expected : @client.NativeArray[Strin
   }
 }
 
-fn bytes_matches_candidates(actual : Array[Int], expected : @client.NativeArray[Bytes]) -> Bool {
+fn bytes_matches_candidates(actual : Array[Int], expected : @client.ImmutVector[Bytes]) -> Bool {
   for candidate in expected.iter() {
     if actual == bytes_to_ints(candidate) {
       return true

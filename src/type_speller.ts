@@ -32,7 +32,7 @@ export class TypeSpeller {
           return maybeWrapperType;
         }
         const itemType = this.getMoonbitType(type.item);
-        return `@client.NativeArray[${itemType}]`;
+        return `@client.ImmutVector[${itemType}]`;
       }
       case "optional": {
         const otherType = this.getMoonbitType(type.other);
@@ -98,7 +98,7 @@ export class TypeSpeller {
         if (maybeWrapperType) {
           return `${maybeWrapperType}::empty()`;
         }
-        return "@client.NativeArray::new()";
+        return "@client.ImmutVector::new()";
       }
       case "optional":
         return "None";

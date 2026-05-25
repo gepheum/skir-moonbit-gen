@@ -410,7 +410,7 @@ class MoonbitSourceFileGenerator {
         if (isKeyedArrayVariant) {
           const itemType = this.typeSpeller.getMoonbitType(resolvedType.item);
           const wrapperType = this.typeSpeller.getMoonbitType(resolvedType);
-          valueType = `@client.NativeArray[${itemType}]`;
+          valueType = `@client.ImmutVector[${itemType}]`;
           wrappedValueExpr = `${wrapperType}::new(value)`;
           extractedValueExpr = "value.vector()";
           defaultValueExpr = `${defaultValueExpr}.vector()`;
@@ -624,13 +624,13 @@ class MoonbitSourceFileGenerator {
       out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
       out.push(
-        `pub fn ${wrapperTypeName}::vector(self : ${wrapperTypeName}) -> @client.NativeArray[${typeName}] {\n`,
+        `pub fn ${wrapperTypeName}::vector(self : ${wrapperTypeName}) -> @client.ImmutVector[${typeName}] {\n`,
       );
       out.push("  self.vector.vector\n");
       out.push("}\n\n");
 
       out.push(
-        `pub fn ${wrapperTypeName}::new(vector : @client.NativeArray[${typeName}]) -> ${wrapperTypeName} {\n`,
+        `pub fn ${wrapperTypeName}::new(vector : @client.ImmutVector[${typeName}]) -> ${wrapperTypeName} {\n`,
       );
       out.push(
         `  { vector: @client.KeyedVector::new(vector, ${specVarName}) }\n`,
@@ -737,7 +737,7 @@ class MoonbitSourceFileGenerator {
     if (isKeyedArrayField) {
       const itemType = this.typeSpeller.getMoonbitType(resolvedType.item);
       const wrapperType = this.typeSpeller.getMoonbitType(resolvedType);
-      setterValueType = `@client.NativeArray[${itemType}]`;
+      setterValueType = `@client.ImmutVector[${itemType}]`;
       getterExpr = `input.${fieldName}.vector()`;
       setterExpr = `${wrapperType}::new(value)`;
     }
