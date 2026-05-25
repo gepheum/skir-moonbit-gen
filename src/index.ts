@@ -582,13 +582,13 @@ class MoonbitSourceFileGenerator {
     out.push(
       `pub fn ${methodName}() -> @client.Method[${requestType}, ${responseType}] {\n`,
     );
-    out.push("  @client.Method::new(\n");
-    out.push(`    ${toMoonbitStringLiteral(method.name.text)},\n`);
-    out.push(`    ${method.number},\n`);
-    out.push(`    ${requestSerializer},\n`);
-    out.push(`    ${responseSerializer},\n`);
-    out.push(`    ${toMoonbitStringLiteral(docToCommentText(method.doc))},\n`);
-    out.push("  )\n");
+    out.push("  {\n");
+    out.push(`    name: ${toMoonbitStringLiteral(method.name.text)},\n`);
+    out.push(`    number: ${method.number},\n`);
+    out.push(`    request_serializer: ${requestSerializer},\n`);
+    out.push(`    response_serializer: ${responseSerializer},\n`);
+    out.push(`    doc: ${toMoonbitStringLiteral(docToCommentText(method.doc))},\n`);
+    out.push("  }\n");
     out.push("}\n\n");
   }
 

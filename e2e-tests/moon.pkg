@@ -1,4 +1,6 @@
 import {
+	"moonbitlang/core/builtin" @builtin,
+	"moonbitlang/core/debug" @debug,
 	"moonbitlang/core/json" @json,
 	"moonbitlang/core/immut/vector" @immut_vector,
 	"skir/e2e-tests/client" @runtime,
