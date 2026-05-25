@@ -378,7 +378,7 @@ class MoonbitSourceFileGenerator {
     out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
     out.push(`let ${unknownVarName} : ${typeName} = `);
-        out.push(`${typeName}::Unknown(None)\n\n`);
+    out.push(`${typeName}::Unknown(None)\n\n`);
 
     out.push(`pub fn ${typeName}::unknown() -> ${typeName} {\n`);
     out.push(`  ${unknownVarName}\n`);
@@ -449,9 +449,9 @@ class MoonbitSourceFileGenerator {
       }
       out.push("    }\n");
       out.push("  },\n");
-          out.push(
-            `  fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(Some(value)) },\n`,
-          );
+      out.push(
+        `  fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(Some(value)) },\n`,
+      );
       out.push(`  fn(input : ${typeName}) {\n`);
       out.push("    match input {\n");
       out.push(`      ${typeName}::Unknown(value) => value\n`);
@@ -499,9 +499,9 @@ class MoonbitSourceFileGenerator {
       }
       out.push("      }\n");
       out.push("    },\n");
-          out.push(
-            `    fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(Some(value)) },\n`,
-          );
+      out.push(
+        `    fn(value : @client.UnrecognizedVariant) { ${typeName}::Unknown(Some(value)) },\n`,
+      );
       out.push(`    fn(input : ${typeName}) {\n`);
       out.push("      match input {\n");
       out.push(`        ${typeName}::Unknown(value) => value\n`);
