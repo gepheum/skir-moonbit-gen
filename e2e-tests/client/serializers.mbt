@@ -727,7 +727,7 @@ pub fn int64_serializer() -> Serializer[Int64] {
     },
     from_json: fn(json : Json, _policy : UnrecognizedValues) {
       match json {
-        Json::Number(n) => {
+        Json::Number(n, ..) => {
           let raw = json.stringify()
           if json_number_looks_integral(raw) {
             Ok(parse_int64_or_zero(raw))
