@@ -602,5 +602,7 @@ test "goldens_assertions" {
     }
     expected_test_number = expected_test_number + 1
   }
-  assert_eq(failed_tests, [])
+  if failed_tests.length() != 0 {
+    panic()
+  }
 }
