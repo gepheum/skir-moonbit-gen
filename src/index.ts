@@ -634,7 +634,7 @@ class MoonbitSourceFileGenerator {
 
     for (const keySpec of keySpecs) {
       const wrapperTypeName = `${typeName}${keySpec.moonbitTypeSuffix}`;
-      const specVarName = `${wrapperTypeName.replace(/_/g, "__").toLowerCase()}__spec`;
+      const specVarName = `_${wrapperTypeName}__spec`;
 
       out.push(
         `let ${specVarName} : @client.Internal_KeyedVectorSpec[${typeName}, ${keySpec.moonbitKeyType}] = {\n`,
