@@ -3,7 +3,6 @@ import {
 	"moonbitlang/core/debug" @debug,
 	"moonbitlang/core/json" @json,
 	"moonbitlang/core/immut/vector" @immut_vector,
-	"skir/e2e-tests/client" @runtime,
-	"skir/e2e-tests/client/gen" @client,
+	"skir/e2e-tests/client" @client,
 	"skir/e2e-tests/skirout/@gepheum/skir-golden-tests/goldens" @goldens,
 }

@@ -9,7 +9,7 @@ enum Evaluated {
   String(String)
   Bytes(Bytes)
   BoolOptional(Bool?)
-  Ints(@client.Array[Int])
+  Ints(@client.NativeArray[Int])
   Point(@goldens.Point)
   Color(@goldens.Color)
   MyEnum(@goldens.MyEnum)
@@ -49,7 +49,7 @@ fn bytes_has_prefix(payload : Array[Int], prefix : Bytes) -> Bool {
   true
 }
 
-fn string_matches_candidates(actual : String, expected : @client.Array[String]) -> Bool {
+fn string_matches_candidates(actual : String, expected : @client.NativeArray[String]) -> Bool {
   for candidate in expected.iter() {
     if actual == candidate {
       return true
@@ -58,7 +58,7 @@ fn string_matches_candidates(actual : String, expected : @client.Array[String]) 
   false
 }
 
-fn json_matches_candidates(actual : String, expected : @client.Array[String]) -> Bool {
+fn json_matches_candidates(actual : String, expected : @client.NativeArray[String]) -> Bool {
   if string_matches_candidates(actual, expected) {
     return true
   }
@@ -80,7 +80,7 @@ fn json_matches_candidates(actual : String, expected : @client.Array[String]) ->
   }
 }
 
-fn bytes_matches_candidates(actual : Array[Int], expected : @client.Array[Bytes]) -> Bool {
+fn bytes_matches_candidates(actual : Array[Int], expected : @client.NativeArray[Bytes]) -> Bool {
   for candidate in expected.iter() {
     if actual == bytes_to_ints(candidate) {
       return true
@@ -89,7 +89,7 @@ fn bytes_matches_candidates(actual : Array[Int], expected : @client.Array[Bytes]
   false
 }
 
-fn policy(keep_unrecognized : Bool) -> @runtime.UnrecognizedValues {
+fn policy(keep_unrecognized : Bool) -> @client.UnrecognizedValues {
   if keep_unrecognized {
     @client.unrecognized_values_keep()
   } else {
@@ -128,17 +128,17 @@ fn evaluate_bytes_expression(expr : @goldens.BytesExpression) -> Result[Array[In
 
 fn evaluated_to_dense_json(value : Evaluated) -> String {
   match value {
-    Evaluated::Bool(v) => @runtime.bool_serializer().to_dense_json(v)
-    Evaluated::Int32(v) => @runtime.int32_serializer().to_dense_json(v)
-    Evaluated::Int64(v) => @runtime.int64_serializer().to_dense_json(v)
-    Evaluated::Hash64(v) => @runtime.hash64_serializer().to_dense_json(v)
-    Evaluated::Float32(v) => @runtime.float32_serializer().to_dense_json(v)
-    Evaluated::Float64(v) => @runtime.float64_serializer().to_dense_json(v)
-    Evaluated::Timestamp(v) => @runtime.timestamp_serializer().to_dense_json(v)
-    Evaluated::String(v) => @runtime.string_serializer().to_dense_json(v)
-    Evaluated::Bytes(v) => @runtime.bytes_serializer().to_dense_json(v)
-    Evaluated::BoolOptional(v) => @runtime.optional_serializer(@runtime.bool_serializer()).to_dense_json(v)
-    Evaluated::Ints(v) => @runtime.vector_serializer(@runtime.int32_serializer()).to_dense_json(v)
+    Evaluated::Bool(v) => @client.bool_serializer().to_dense_json(v)
+    Evaluated::Int32(v) => @client.int32_serializer().to_dense_json(v)
+    Evaluated::Int64(v) => @client.int64_serializer().to_dense_json(v)
+    Evaluated::Hash64(v) => @client.hash64_serializer().to_dense_json(v)
+    Evaluated::Float32(v) => @client.float32_serializer().to_dense_json(v)
+    Evaluated::Float64(v) => @client.float64_serializer().to_dense_json(v)
+    Evaluated::Timestamp(v) => @client.timestamp_serializer().to_dense_json(v)
+    Evaluated::String(v) => @client.string_serializer().to_dense_json(v)
+    Evaluated::Bytes(v) => @client.bytes_serializer().to_dense_json(v)
+    Evaluated::BoolOptional(v) => @client.optional_serializer(@client.bool_serializer()).to_dense_json(v)
+    Evaluated::Ints(v) => @client.vector_serializer(@client.int32_serializer()).to_dense_json(v)
     Evaluated::Point(v) => @goldens.Point::serializer().to_dense_json(v)
     Evaluated::Color(v) => @goldens.Color::serializer().to_dense_json(v)
     Evaluated::MyEnum(v) => @goldens.MyEnum::serializer().to_dense_json(v)
@@ -152,17 +152,17 @@ fn evaluated_to_dense_json(value : Evaluated) -> String {
 
 fn evaluated_to_readable_json(value : Evaluated) -> String {
   match value {
-    Evaluated::Bool(v) => @runtime.bool_serializer().to_readable_json(v).stringify()
-    Evaluated::Int32(v) => @runtime.int32_serializer().to_readable_json(v).stringify()
-    Evaluated::Int64(v) => @runtime.int64_serializer().to_readable_json(v).stringify()
-    Evaluated::Hash64(v) => @runtime.hash64_serializer().to_readable_json(v).stringify()
-    Evaluated::Float32(v) => @runtime.float32_serializer().to_readable_json(v).stringify()
-    Evaluated::Float64(v) => @runtime.float64_serializer().to_readable_json(v).stringify()
-    Evaluated::Timestamp(v) => @runtime.timestamp_serializer().to_readable_json(v).stringify()
-    Evaluated::String(v) => @runtime.string_serializer().to_readable_json(v).stringify()
-    Evaluated::Bytes(v) => @runtime.bytes_serializer().to_readable_json(v).stringify()
-    Evaluated::BoolOptional(v) => @runtime.optional_serializer(@runtime.bool_serializer()).to_readable_json(v).stringify()
-    Evaluated::Ints(v) => @runtime.vector_serializer(@runtime.int32_serializer()).to_readable_json(v).stringify()
+    Evaluated::Bool(v) => @client.bool_serializer().to_readable_json(v).stringify()
+    Evaluated::Int32(v) => @client.int32_serializer().to_readable_json(v).stringify()
+    Evaluated::Int64(v) => @client.int64_serializer().to_readable_json(v).stringify()
+    Evaluated::Hash64(v) => @client.hash64_serializer().to_readable_json(v).stringify()
+    Evaluated::Float32(v) => @client.float32_serializer().to_readable_json(v).stringify()
+    Evaluated::Float64(v) => @client.float64_serializer().to_readable_json(v).stringify()
+    Evaluated::Timestamp(v) => @client.timestamp_serializer().to_readable_json(v).stringify()
+    Evaluated::String(v) => @client.string_serializer().to_readable_json(v).stringify()
+    Evaluated::Bytes(v) => @client.bytes_serializer().to_readable_json(v).stringify()
+    Evaluated::BoolOptional(v) => @client.optional_serializer(@client.bool_serializer()).to_readable_json(v).stringify()
+    Evaluated::Ints(v) => @client.vector_serializer(@client.int32_serializer()).to_readable_json(v).stringify()
     Evaluated::Point(v) => @goldens.Point::serializer().to_readable_json(v).stringify()
     Evaluated::Color(v) => @goldens.Color::serializer().to_readable_json(v).stringify()
     Evaluated::MyEnum(v) => @goldens.MyEnum::serializer().to_readable_json(v).stringify()
@@ -176,17 +176,17 @@ fn evaluated_to_readable_json(value : Evaluated) -> String {
 
 fn evaluated_to_bytes(value : Evaluated) -> Array[Int] {
   match value {
-    Evaluated::Bool(v) => @runtime.bool_serializer().to_bytes(v)
-    Evaluated::Int32(v) => @runtime.int32_serializer().to_bytes(v)
-    Evaluated::Int64(v) => @runtime.int64_serializer().to_bytes(v)
-    Evaluated::Hash64(v) => @runtime.hash64_serializer().to_bytes(v)
-    Evaluated::Float32(v) => @runtime.float32_serializer().to_bytes(v)
-    Evaluated::Float64(v) => @runtime.float64_serializer().to_bytes(v)
-    Evaluated::Timestamp(v) => @runtime.timestamp_serializer().to_bytes(v)
-    Evaluated::String(v) => @runtime.string_serializer().to_bytes(v)
-    Evaluated::Bytes(v) => @runtime.bytes_serializer().to_bytes(v)
-    Evaluated::BoolOptional(v) => @runtime.optional_serializer(@runtime.bool_serializer()).to_bytes(v)
-    Evaluated::Ints(v) => @runtime.vector_serializer(@runtime.int32_serializer()).to_bytes(v)
+    Evaluated::Bool(v) => @client.bool_serializer().to_bytes(v)
+    Evaluated::Int32(v) => @client.int32_serializer().to_bytes(v)
+    Evaluated::Int64(v) => @client.int64_serializer().to_bytes(v)
+    Evaluated::Hash64(v) => @client.hash64_serializer().to_bytes(v)
+    Evaluated::Float32(v) => @client.float32_serializer().to_bytes(v)
+    Evaluated::Float64(v) => @client.float64_serializer().to_bytes(v)
+    Evaluated::Timestamp(v) => @client.timestamp_serializer().to_bytes(v)
+    Evaluated::String(v) => @client.string_serializer().to_bytes(v)
+    Evaluated::Bytes(v) => @client.bytes_serializer().to_bytes(v)
+    Evaluated::BoolOptional(v) => @client.optional_serializer(@client.bool_serializer()).to_bytes(v)
+    Evaluated::Ints(v) => @client.vector_serializer(@client.int32_serializer()).to_bytes(v)
     Evaluated::Point(v) => @goldens.Point::serializer().to_bytes(v)
     Evaluated::Color(v) => @goldens.Color::serializer().to_bytes(v)
     Evaluated::MyEnum(v) => @goldens.MyEnum::serializer().to_bytes(v)
@@ -200,17 +200,17 @@ fn evaluated_to_bytes(value : Evaluated) -> Array[Int] {
 
 fn evaluated_to_type_descriptor_json(value : Evaluated) -> String {
   match value {
-    Evaluated::Bool(_) => @runtime.bool_serializer().type_descriptor().as_json().stringify()
-    Evaluated::Int32(_) => @runtime.int32_serializer().type_descriptor().as_json().stringify()
-    Evaluated::Int64(_) => @runtime.int64_serializer().type_descriptor().as_json().stringify()
-    Evaluated::Hash64(_) => @runtime.hash64_serializer().type_descriptor().as_json().stringify()
-    Evaluated::Float32(_) => @runtime.float32_serializer().type_descriptor().as_json().stringify()
-    Evaluated::Float64(_) => @runtime.float64_serializer().type_descriptor().as_json().stringify()
-    Evaluated::Timestamp(_) => @runtime.timestamp_serializer().type_descriptor().as_json().stringify()
-    Evaluated::String(_) => @runtime.string_serializer().type_descriptor().as_json().stringify()
-    Evaluated::Bytes(_) => @runtime.bytes_serializer().type_descriptor().as_json().stringify()
-    Evaluated::BoolOptional(_) => @runtime.optional_serializer(@runtime.bool_serializer()).type_descriptor().as_json().stringify()
-    Evaluated::Ints(_) => @runtime.vector_serializer(@runtime.int32_serializer()).type_descriptor().as_json().stringify()
+    Evaluated::Bool(_) => @client.bool_serializer().type_descriptor().as_json().stringify()
+    Evaluated::Int32(_) => @client.int32_serializer().type_descriptor().as_json().stringify()
+    Evaluated::Int64(_) => @client.int64_serializer().type_descriptor().as_json().stringify()
+    Evaluated::Hash64(_) => @client.hash64_serializer().type_descriptor().as_json().stringify()
+    Evaluated::Float32(_) => @client.float32_serializer().type_descriptor().as_json().stringify()
+    Evaluated::Float64(_) => @client.float64_serializer().type_descriptor().as_json().stringify()
+    Evaluated::Timestamp(_) => @client.timestamp_serializer().type_descriptor().as_json().stringify()
+    Evaluated::String(_) => @client.string_serializer().type_descriptor().as_json().stringify()
+    Evaluated::Bytes(_) => @client.bytes_serializer().type_descriptor().as_json().stringify()
+    Evaluated::BoolOptional(_) => @client.optional_serializer(@client.bool_serializer()).type_descriptor().as_json().stringify()
+    Evaluated::Ints(_) => @client.vector_serializer(@client.int32_serializer()).type_descriptor().as_json().stringify()
     Evaluated::Point(_) => @goldens.Point::serializer().type_descriptor().as_json().stringify()
     Evaluated::Color(_) => @goldens.Color::serializer().type_descriptor().as_json().stringify()
     Evaluated::MyEnum(_) => @goldens.MyEnum::serializer().type_descriptor().as_json().stringify()
@@ -225,17 +225,17 @@ fn evaluated_to_type_descriptor_json(value : Evaluated) -> String {
 fn evaluated_from_json(value : Evaluated, json : String, keep_unrecognized : Bool) -> Result[Evaluated, String] {
   let p = policy(keep_unrecognized)
   match value {
-    Evaluated::Bool(_) => @runtime.bool_serializer().from_json(json, p).map(fn(v) { Evaluated::Bool(v) })
-    Evaluated::Int32(_) => @runtime.int32_serializer().from_json(json, p).map(fn(v) { Evaluated::Int32(v) })
-    Evaluated::Int64(_) => @runtime.int64_serializer().from_json(json, p).map(fn(v) { Evaluated::Int64(v) })
-    Evaluated::Hash64(_) => @runtime.hash64_serializer().from_json(json, p).map(fn(v) { Evaluated::Hash64(v) })
-    Evaluated::Float32(_) => @runtime.float32_serializer().from_json(json, p).map(fn(v) { Evaluated::Float32(v) })
-    Evaluated::Float64(_) => @runtime.float64_serializer().from_json(json, p).map(fn(v) { Evaluated::Float64(v) })
-    Evaluated::Timestamp(_) => @runtime.timestamp_serializer().from_json(json, p).map(fn(v) { Evaluated::Timestamp(v) })
-    Evaluated::String(_) => @runtime.string_serializer().from_json(json, p).map(fn(v) { Evaluated::String(v) })
-    Evaluated::Bytes(_) => @runtime.bytes_serializer().from_json(json, p).map(fn(v) { Evaluated::Bytes(v) })
-    Evaluated::BoolOptional(_) => @runtime.optional_serializer(@runtime.bool_serializer()).from_json(json, p).map(fn(v) { Evaluated::BoolOptional(v) })
-    Evaluated::Ints(_) => @runtime.vector_serializer(@runtime.int32_serializer()).from_json(json, p).map(fn(v) { Evaluated::Ints(v) })
+    Evaluated::Bool(_) => @client.bool_serializer().from_json(json, p).map(fn(v) { Evaluated::Bool(v) })
+    Evaluated::Int32(_) => @client.int32_serializer().from_json(json, p).map(fn(v) { Evaluated::Int32(v) })
+    Evaluated::Int64(_) => @client.int64_serializer().from_json(json, p).map(fn(v) { Evaluated::Int64(v) })
+    Evaluated::Hash64(_) => @client.hash64_serializer().from_json(json, p).map(fn(v) { Evaluated::Hash64(v) })
+    Evaluated::Float32(_) => @client.float32_serializer().from_json(json, p).map(fn(v) { Evaluated::Float32(v) })
+    Evaluated::Float64(_) => @client.float64_serializer().from_json(json, p).map(fn(v) { Evaluated::Float64(v) })
+    Evaluated::Timestamp(_) => @client.timestamp_serializer().from_json(json, p).map(fn(v) { Evaluated::Timestamp(v) })
+    Evaluated::String(_) => @client.string_serializer().from_json(json, p).map(fn(v) { Evaluated::String(v) })
+    Evaluated::Bytes(_) => @client.bytes_serializer().from_json(json, p).map(fn(v) { Evaluated::Bytes(v) })
+    Evaluated::BoolOptional(_) => @client.optional_serializer(@client.bool_serializer()).from_json(json, p).map(fn(v) { Evaluated::BoolOptional(v) })
+    Evaluated::Ints(_) => @client.vector_serializer(@client.int32_serializer()).from_json(json, p).map(fn(v) { Evaluated::Ints(v) })
     Evaluated::Point(_) => @goldens.Point::serializer().from_json(json, p).map(fn(v) { Evaluated::Point(v) })
     Evaluated::Color(_) => @goldens.Color::serializer().from_json(json, p).map(fn(v) { Evaluated::Color(v) })
     Evaluated::MyEnum(_) => @goldens.MyEnum::serializer().from_json(json, p).map(fn(v) { Evaluated::MyEnum(v) })
@@ -250,17 +250,17 @@ fn evaluated_from_json(value : Evaluated, json : String, keep_unrecognized : Boo
 fn evaluated_from_bytes(value : Evaluated, bytes : Array[Int], keep_unrecognized : Bool) -> Result[Evaluated, String] {
   let p = policy(keep_unrecognized)
   match value {
-    Evaluated::Bool(_) => @runtime.bool_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Bool(v) })
-    Evaluated::Int32(_) => @runtime.int32_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Int32(v) })
-    Evaluated::Int64(_) => @runtime.int64_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Int64(v) })
-    Evaluated::Hash64(_) => @runtime.hash64_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Hash64(v) })
-    Evaluated::Float32(_) => @runtime.float32_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Float32(v) })
-    Evaluated::Float64(_) => @runtime.float64_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Float64(v) })
-    Evaluated::Timestamp(_) => @runtime.timestamp_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Timestamp(v) })
-    Evaluated::String(_) => @runtime.string_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::String(v) })
-    Evaluated::Bytes(_) => @runtime.bytes_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Bytes(v) })
-    Evaluated::BoolOptional(_) => @runtime.optional_serializer(@runtime.bool_serializer()).from_bytes(bytes, p).map(fn(v) { Evaluated::BoolOptional(v) })
-    Evaluated::Ints(_) => @runtime.vector_serializer(@runtime.int32_serializer()).from_bytes(bytes, p).map(fn(v) { Evaluated::Ints(v) })
+    Evaluated::Bool(_) => @client.bool_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Bool(v) })
+    Evaluated::Int32(_) => @client.int32_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Int32(v) })
+    Evaluated::Int64(_) => @client.int64_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Int64(v) })
+    Evaluated::Hash64(_) => @client.hash64_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Hash64(v) })
+    Evaluated::Float32(_) => @client.float32_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Float32(v) })
+    Evaluated::Float64(_) => @client.float64_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Float64(v) })
+    Evaluated::Timestamp(_) => @client.timestamp_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Timestamp(v) })
+    Evaluated::String(_) => @client.string_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::String(v) })
+    Evaluated::Bytes(_) => @client.bytes_serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Bytes(v) })
+    Evaluated::BoolOptional(_) => @client.optional_serializer(@client.bool_serializer()).from_bytes(bytes, p).map(fn(v) { Evaluated::BoolOptional(v) })
+    Evaluated::Ints(_) => @client.vector_serializer(@client.int32_serializer()).from_bytes(bytes, p).map(fn(v) { Evaluated::Ints(v) })
     Evaluated::Point(_) => @goldens.Point::serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Point(v) })
     Evaluated::Color(_) => @goldens.Color::serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::Color(v) })
     Evaluated::MyEnum(_) => @goldens.MyEnum::serializer().from_bytes(bytes, p).map(fn(v) { Evaluated::MyEnum(v) })
@@ -521,7 +521,7 @@ fn verify_assertion(assertion : @goldens.Assertion) -> String? {
       for _ in 0..<value.num_chars {
         builder.write_char('x')
       }
-      if bytes_has_prefix(@runtime.string_serializer().to_bytes(builder.to_string()), value.expected_byte_prefix) {
+      if bytes_has_prefix(@client.string_serializer().to_bytes(builder.to_string()), value.expected_byte_prefix) {
         None
       } else {
         Some("reserialize_large_string")
@@ -534,7 +534,7 @@ fn verify_assertion(assertion : @goldens.Assertion) -> String? {
       }
       let array = @immut_vector.Vector::from_array(items)
       if bytes_has_prefix(
-        @runtime.vector_serializer(@runtime.int32_serializer()).to_bytes(array),
+        @client.vector_serializer(@client.int32_serializer()).to_bytes(array),
         value.expected_byte_prefix,
       ) {
         None

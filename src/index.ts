@@ -410,7 +410,7 @@ class MoonbitSourceFileGenerator {
         if (isKeyedArrayVariant) {
           const itemType = this.typeSpeller.getMoonbitType(resolvedType.item);
           const wrapperType = this.typeSpeller.getMoonbitType(resolvedType);
-          valueType = `@client.Vector[${itemType}]`;
+          valueType = `@client.NativeArray[${itemType}]`;
           wrappedValueExpr = `${wrapperType}::new(value)`;
           extractedValueExpr = "value.vector()";
           defaultValueExpr = `${defaultValueExpr}.vector()`;
@@ -624,13 +624,13 @@ class MoonbitSourceFileGenerator {
       out.push("} derive(@builtin.Eq, @debug.Debug)\n\n");
 
       out.push(
-        `pub fn ${wrapperTypeName}::vector(self : ${wrapperTypeName}) -> @client.Vector[${typeName}] {\n`,
+        `pub fn ${wrapperTypeName}::vector(self : ${wrapperTypeName}) -> @client.NativeArray[${typeName}] {\n`,
       );
       out.push("  self.vector.vector\n");
       out.push("}\n\n");
 
       out.push(
-        `pub fn ${wrapperTypeName}::new(vector : @client.Vector[${typeName}]) -> ${wrapperTypeName} {\n`,
+        `pub fn ${wrapperTypeName}::new(vector : @client.NativeArray[${typeName}]) -> ${wrapperTypeName} {\n`,
       );
       out.push(
         `  { vector: @client.KeyedVector::new(vector, ${specVarName}) }\n`,
@@ -737,7 +737,7 @@ class MoonbitSourceFileGenerator {
     if (isKeyedArrayField) {
       const itemType = this.typeSpeller.getMoonbitType(resolvedType.item);
       const wrapperType = this.typeSpeller.getMoonbitType(resolvedType);
-      setterValueType = `@client.Vector[${itemType}]`;
+      setterValueType = `@client.NativeArray[${itemType}]`;
       getterExpr = `input.${fieldName}.vector()`;
       setterExpr = `${wrapperType}::new(value)`;
     }
@@ -814,4 +814,4 @@ function toMoonbitStringLiteral(value: string): string {
 }
 
 const SKIROUT_PACKAGE_PREFIX = "skir/e2e-tests/skirout";
-const CLIENT_PACKAGE_PATH = "skir/e2e-tests/client/gen";
+const CLIENT_PACKAGE_PATH = "skir/e2e-tests/client";

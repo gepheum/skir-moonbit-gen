@@ -32,7 +32,7 @@ export class TypeSpeller {
           return maybeWrapperType;
         }
         const itemType = this.getMoonbitType(type.item);
-        return `@client.Array[${itemType}]`;
+        return `@client.NativeArray[${itemType}]`;
       }
       case "optional": {
         const otherType = this.getMoonbitType(type.other);
@@ -42,23 +42,23 @@ export class TypeSpeller {
         const { primitive } = type;
         switch (primitive) {
           case "bool":
-            return "@client.Bool";
+            return "@client.NativeBool";
           case "int32":
-            return "@client.Int";
+            return "@client.NativeInt";
           case "int64":
-            return "@client.Int64";
+            return "@client.NativeInt64";
           case "hash64":
-            return "@client.UInt64";
+            return "@client.NativeUInt64";
           case "float32":
-            return "@client.Float";
+            return "@client.NativeFloat";
           case "float64":
-            return "@client.Double";
+            return "@client.NativeDouble";
           case "timestamp":
             return "@client.Timestamp";
           case "string":
-            return "@client.String";
+            return "@client.NativeString";
           case "bytes":
-            return "@client.Bytes";
+            return "@client.NativeBytes";
         }
       }
     }
@@ -98,7 +98,7 @@ export class TypeSpeller {
         if (maybeWrapperType) {
           return `${maybeWrapperType}::empty()`;
         }
-        return "@client.Array::new()";
+        return "@client.NativeArray::new()";
       }
       case "optional":
         return "None";
