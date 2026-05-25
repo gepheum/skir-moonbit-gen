@@ -412,67 +412,67 @@ fn evaluate_typed_value(input : @goldens.TypedValue) -> Result[Evaluated, String
   }
 }
 
-fn verify_reserialize_value(assertion : @goldens.Assertion_ReserializeValue) -> Bool {
+fn verify_reserialize_value(assertion : @goldens.Assertion_ReserializeValue) -> String? {
   let evaluated =
     match evaluate_typed_value(assertion.value) {
       Ok(v) => v
-      Err(_) => return false
+      Err(e) => return Some("evaluate:" + e)
     }
 
   let dense = evaluated_to_dense_json(evaluated)
   if !json_matches_candidates(dense, assertion.expected_dense_json) {
-    return false
+    return Some("dense_json")
   }
 
   let readable = evaluated_to_readable_json(evaluated)
   if !json_matches_candidates(readable, assertion.expected_readable_json) {
-    return false
+    return Some("readable_json")
   }
 
   let bytes = evaluated_to_bytes(evaluated)
   if !bytes_matches_candidates(bytes, assertion.expected_bytes) {
-    return false
+    return Some("bytes")
   }
 
   for candidate in assertion.expected_dense_json.iter() {
     match evaluated_from_json(evaluated, candidate, false) {
-      Ok(parsed) => if parsed != evaluated { return false }
-      Err(_) => return false
+      Ok(parsed) => if parsed != evaluated { return Some("roundtrip_dense_json") }
+      Err(_) => return Some("roundtrip_dense_json")
     }
   }
   for candidate in assertion.expected_readable_json.iter() {
     match evaluated_from_json(evaluated, candidate, false) {
-      Ok(parsed) => if parsed != evaluated { return false }
-      Err(_) => return false
+      Ok(parsed) => if parsed != evaluated { return Some("roundtrip_readable_json") }
+      Err(_) => return Some("roundtrip_readable_json")
     }
   }
   for candidate in assertion.alternative_jsons.iter() {
     let code =
       match evaluate_string_expression(candidate) {
         Ok(v) => v
-        Err(_) => return false
+        Err(_) => return Some("alternative_json_eval")
       }
     match evaluated_from_json(evaluated, code, false) {
-      Ok(parsed) => if parsed != evaluated { return false }
-      Err(_) => return false
+      Ok(parsed) => if parsed != evaluated { return Some("alternative_json") }
+      Err(_) => return Some("alternative_json")
     }
   }
 
   for candidate in assertion.expected_bytes.iter() {
     match evaluated_from_bytes(evaluated, bytes_to_ints(candidate), false) {
-      Ok(parsed) => if parsed != evaluated { return false }
-      Err(_) => return false
+      Ok(parsed) => if parsed != evaluated { return Some("roundtrip_bytes") }
+      Err(_) => return Some("roundtrip_bytes")
     }
   }
   for candidate in assertion.alternative_bytes.iter() {
     let encoded =
       match evaluate_bytes_expression(candidate) {
         Ok(v) => v
-        Err(_) => return false
+        Err(_) => return Some("alternative_bytes_eval")
       }
     match evaluated_from_bytes(evaluated, encoded, false) {
-      Ok(parsed) => if parsed != evaluated { return false }
-      Err(_) => return false
+      Ok(parsed) => if parsed != evaluated { return Some("alternative_bytes") }
+      Err(_) => return Some("alternative_bytes")
     }
   }
 
@@ -482,38 +482,38 @@ fn verify_reserialize_value(assertion : @goldens.Assertion_ReserializeValue) -> 
       let actual_json = parse_json_or_none(actual)
       let expected_json = parse_json_or_none(expected)
       match (actual_json, expected_json) {
-        (Some(a), Some(b)) => if a != b { return false }
-        _ => if actual != expected { return false }
+        (Some(a), Some(b)) => if a != b { return Some("type_descriptor") }
+        _ => if actual != expected { return Some("type_descriptor") }
       }
     }
     None => ()
   }
 
-  true
+  None
 }
 
-fn verify_assertion(assertion : @goldens.Assertion) -> Bool {
+fn verify_assertion(assertion : @goldens.Assertion) -> String? {
   match assertion {
-    @goldens.Assertion::Unknown(_) => false
+    @goldens.Assertion::Unknown(_) => Some("unknown_assertion")
     @goldens.Assertion::BytesEqual(value) =>
       match (evaluate_bytes_expression(value.actual), evaluate_bytes_expression(value.expected)) {
-        (Ok(actual), Ok(expected)) => actual == expected
-        _ => false
+        (Ok(actual), Ok(expected)) => if actual == expected { None } else { Some("bytes_equal") }
+        _ => Some("bytes_equal")
       }
     @goldens.Assertion::BytesIn(value) =>
       match evaluate_bytes_expression(value.actual) {
-        Ok(actual) => bytes_matches_candidates(actual, value.expected)
-        Err(_) => false
+        Ok(actual) => if bytes_matches_candidates(actual, value.expected) { None } else { Some("bytes_in") }
+        Err(_) => Some("bytes_in")
       }
     @goldens.Assertion::StringEqual(value) =>
       match (evaluate_string_expression(value.actual), evaluate_string_expression(value.expected)) {
-        (Ok(actual), Ok(expected)) => actual == expected
-        _ => false
+        (Ok(actual), Ok(expected)) => if actual == expected { None } else { Some("string_equal") }
+        _ => Some("string_equal")
       }
     @goldens.Assertion::StringIn(value) =>
       match evaluate_string_expression(value.actual) {
-        Ok(actual) => string_matches_candidates(actual, value.expected)
-        Err(_) => false
+        Ok(actual) => if string_matches_candidates(actual, value.expected) { None } else { Some("string_in") }
+        Err(_) => Some("string_in")
       }
     @goldens.Assertion::ReserializeValue(value) => verify_reserialize_value(value)
     @goldens.Assertion::ReserializeLargeString(value) => {
@@ -521,7 +521,11 @@ fn verify_assertion(assertion : @goldens.Assertion) -> Bool {
       for _ in 0..<value.num_chars {
         builder.write_char('x')
       }
-      bytes_has_prefix(@runtime.string_serializer().to_bytes(builder.to_string()), value.expected_byte_prefix)
+      if bytes_has_prefix(@runtime.string_serializer().to_bytes(builder.to_string()), value.expected_byte_prefix) {
+        None
+      } else {
+        Some("reserialize_large_string")
+      }
     }
     @goldens.Assertion::ReserializeLargeArray(value) => {
       let items : Array[Int] = []
@@ -529,53 +533,57 @@ fn verify_assertion(assertion : @goldens.Assertion) -> Bool {
         items.push(i)
       }
       let array = @immut_vector.Vector::from_array(items)
-      bytes_has_prefix(
+      if bytes_has_prefix(
         @runtime.vector_serializer(@runtime.int32_serializer()).to_bytes(array),
         value.expected_byte_prefix,
-      )
+      ) {
+        None
+      } else {
+        Some("reserialize_large_array")
+      }
     }
     @goldens.Assertion::EnumAFromJsonIsConstant(value) => {
       let code =
         match evaluate_string_expression(value.actual) {
           Ok(v) => v
-          Err(_) => return false
+          Err(_) => return Some("enum_a_from_json")
         }
       match @goldens.EnumA::serializer().from_json(code, policy(value.keep_unrecognized)) {
-        Ok(parsed) => parsed == @goldens.EnumA::A
-        Err(_) => false
+        Ok(parsed) => if parsed == @goldens.EnumA::A { None } else { Some("enum_a_from_json") }
+        Err(_) => Some("enum_a_from_json")
       }
     }
     @goldens.Assertion::EnumAFromBytesIsConstant(value) => {
       let encoded =
         match evaluate_bytes_expression(value.actual) {
           Ok(v) => v
-          Err(_) => return false
+          Err(_) => return Some("enum_a_from_bytes")
         }
       match @goldens.EnumA::serializer().from_bytes(encoded, policy(value.keep_unrecognized)) {
-        Ok(parsed) => parsed == @goldens.EnumA::A
-        Err(_) => false
+        Ok(parsed) => if parsed == @goldens.EnumA::A { None } else { Some("enum_a_from_bytes") }
+        Err(_) => Some("enum_a_from_bytes")
       }
     }
     @goldens.Assertion::EnumBFromJsonIsWrapperB(value) => {
       let code =
         match evaluate_string_expression(value.actual) {
           Ok(v) => v
-          Err(_) => return false
+          Err(_) => return Some("enum_b_from_json")
         }
       match @goldens.EnumB::serializer().from_json(code, policy(value.keep_unrecognized)) {
-        Ok(parsed) => parsed == @goldens.EnumB::B(value.expected)
-        Err(_) => false
+        Ok(parsed) => if parsed == @goldens.EnumB::B(value.expected) { None } else { Some("enum_b_from_json") }
+        Err(_) => Some("enum_b_from_json")
       }
     }
     @goldens.Assertion::EnumBFromBytesIsWrapperB(value) => {
       let encoded =
         match evaluate_bytes_expression(value.actual) {
           Ok(v) => v
-          Err(_) => return false
+          Err(_) => return Some("enum_b_from_bytes")
         }
       match @goldens.EnumB::serializer().from_bytes(encoded, policy(value.keep_unrecognized)) {
-        Ok(parsed) => parsed == @goldens.EnumB::B(value.expected)
-        Err(_) => false
+        Ok(parsed) => if parsed == @goldens.EnumB::B(value.expected) { None } else { Some("enum_b_from_bytes") }
+        Err(_) => Some("enum_b_from_bytes")
       }
     }
   }
@@ -583,15 +591,16 @@ fn verify_assertion(assertion : @goldens.Assertion) -> Bool {
 
 test "goldens_assertions" {
   let mut expected_test_number = 1000
-  let failed_tests : Array[Int] = []
+  let failed_tests : Array[String] = []
   for unit_test in @goldens.unit_tests_const.iter() {
     if unit_test.test_number != expected_test_number {
-      failed_tests.push(unit_test.test_number)
+      failed_tests.push(unit_test.test_number.to_string() + ":numbering")
     }
-    if !verify_assertion(unit_test.assertion) {
-      failed_tests.push(unit_test.test_number)
+    match verify_assertion(unit_test.assertion) {
+      Some(reason) => failed_tests.push(unit_test.test_number.to_string() + ":" + reason)
+      None => ()
     }
     expected_test_number = expected_test_number + 1
   }
-  assert_eq(failed_tests.length(), 0)
+  assert_eq(failed_tests, [])
 }

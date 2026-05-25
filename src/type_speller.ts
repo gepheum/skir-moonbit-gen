@@ -127,6 +127,50 @@ export class TypeSpeller {
     }
   }
 
+  getMoonbitSerializerExpr(type: ResolvedType): string {
+    switch (type.kind) {
+      case "record": {
+        const recordLocation = this.recordMap.get(type.key)!;
+        const typeName = getTypeName(recordLocation);
+        const serializerExpr = `${typeName}::serializer()`;
+        if (recordLocation.modulePath === this.currentModulePath) {
+          return serializerExpr;
+        }
+        return `@${modulePathToAlias(recordLocation.modulePath)}.${serializerExpr}`;
+      }
+      case "array": {
+        const itemSerializer = this.getMoonbitSerializerExpr(type.item);
+        return `@runtime.vector_serializer(${itemSerializer})`;
+      }
+      case "optional": {
+        const otherSerializer = this.getMoonbitSerializerExpr(type.other);
+        return `@runtime.optional_serializer(${otherSerializer})`;
+      }
+      case "primitive": {
+        switch (type.primitive) {
+          case "bool":
+            return "@runtime.bool_serializer()";
+          case "int32":
+            return "@runtime.int32_serializer()";
+          case "int64":
+            return "@runtime.int64_serializer()";
+          case "hash64":
+            return "@runtime.hash64_serializer()";
+          case "float32":
+            return "@runtime.float32_serializer()";
+          case "float64":
+            return "@runtime.float64_serializer()";
+          case "timestamp":
+            return "@runtime.timestamp_serializer()";
+          case "string":
+            return "@runtime.string_serializer()";
+          case "bytes":
+            return "@runtime.bytes_serializer()";
+        }
+      }
+    }
+  }
+
   private getRequiredFieldType(field: Field): ResolvedType {
     if (!field.type) {
       throw new Error("Expected field.type to be defined");

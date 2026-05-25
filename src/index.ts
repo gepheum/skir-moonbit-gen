@@ -1,6 +1,7 @@
 // TODO: make Serializer.adapter private?
 // TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
 // TODO: remove UnrecognizedValues enum, use named parameter for bool
+// TODO: figure out what symbols to actually export
 // TODO: make them comparable, renderable, etc.
 // TODO: KeyedArray...
 // TODO: remove all the weird logic which looks at "removed"...
@@ -11,8 +12,10 @@ import {
   convertCase,
   type CodeGenerator,
   type Constant,
+  type Doc,
   type Field,
   type ImportedNames,
+  type Method,
   type Module,
   type RecordKey,
   type RecordLocation,
@@ -96,6 +99,10 @@ class MoonbitSourceFileGenerator {
       this.writeConstant(constant, out);
     }
 
+    for (const method of this.inModule.methods) {
+      this.writeMethod(method, out);
+    }
+
     if (this.initStatements.length > 0) {
       out.push("fn init {\n");
       for (const statement of this.initStatements) {
@@ -148,8 +155,12 @@ class MoonbitSourceFileGenerator {
     const typeName = this.getTypeName(record);
     const adapterVarName = `${typeName.toLowerCase()}__adapter`;
     const isRecursive = this.isRecursiveRecord(fields);
-    const moduleName = this.toMoonbitStringLiteral(this.getRecordNamespace());
-    const typeNameLiteral = this.toMoonbitStringLiteral(typeName);
+    const recordIdLiteral = this.toMoonbitStringLiteral(
+      `${record.modulePath}:${record.recordAncestors.map((ancestor) => ancestor.name.text).join(".")}`,
+    );
+    const recordDocLiteral = this.toMoonbitStringLiteral(
+      docToCommentText(record.record.doc),
+    );
     const structFieldNames = fields.map((field) =>
       toStructFieldName(field.name.text),
     );
@@ -250,9 +261,9 @@ class MoonbitSourceFileGenerator {
       out.push(
         `let ${adapterVarName} : @runtime.StructAdapter[${typeName}] = @runtime.StructAdapter::new(\n`,
       );
-      out.push(`  ${moduleName},\n`);
-      out.push(`  ${typeNameLiteral},\n`);
+      out.push(`  ${recordIdLiteral},\n`);
       out.push('  "",\n');
+      out.push(`  ${recordDocLiteral},\n`);
       out.push(`  fn() { ${typeName}::default() },\n`);
       out.push(`  fn(input : ${typeName}) { input._unrecognized },\n`);
       out.push(
@@ -295,9 +306,9 @@ class MoonbitSourceFileGenerator {
         `fn ${adapterInitFnName}() -> @runtime.StructAdapter[${typeName}] {\n`,
       );
       out.push("  let adapter = @runtime.StructAdapter::new(\n");
-      out.push(`    ${moduleName},\n`);
-      out.push(`    ${typeNameLiteral},\n`);
+      out.push(`    ${recordIdLiteral},\n`);
       out.push('    "",\n');
+      out.push(`    ${recordDocLiteral},\n`);
       out.push(`    fn() { ${typeName}::default() },\n`);
       out.push(`    fn(input : ${typeName}) { input._unrecognized },\n`);
       out.push(
@@ -334,8 +345,12 @@ class MoonbitSourceFileGenerator {
     const unknownVarName = `${typeName.toLowerCase()}__unknown`;
     const adapterVarName = `${typeName.toLowerCase()}__adapter`;
     const isRecursive = this.isRecursiveRecord(variants);
-    const moduleName = this.toMoonbitStringLiteral(this.getRecordNamespace());
-    const typeNameLiteral = this.toMoonbitStringLiteral(typeName);
+    const recordIdLiteral = this.toMoonbitStringLiteral(
+      `${record.modulePath}:${record.recordAncestors.map((ancestor) => ancestor.name.text).join(".")}`,
+    );
+    const recordDocLiteral = this.toMoonbitStringLiteral(
+      docToCommentText(record.record.doc),
+    );
 
     out.push(`pub(all) enum ${typeName} {\n`);
     const usedNames = new Set<string>();
@@ -379,7 +394,7 @@ class MoonbitSourceFileGenerator {
       const nameLiteral = this.toMoonbitStringLiteral(variant.field.name.text);
       if (!variant.field.type) {
         addVariantLines.push(
-          `${adapterVarName}.add_constant_variant(${nameLiteral}, ${number}, ${kindOrdinal}, "", ${typeName}::${variant.variantName})`,
+          `${adapterVarName}.add_constant_variant(${nameLiteral}, ${number}, ${kindOrdinal}, ${toMoonbitStringLiteral(docToCommentText(variant.field.doc))}, ${typeName}::${variant.variantName})`,
         );
       } else {
         const resolvedType = variant.field.type;
@@ -404,7 +419,7 @@ class MoonbitSourceFileGenerator {
         }
 
         addVariantLines.push(
-          `${adapterVarName}.add_wrapper_variant(${nameLiteral}, ${number}, ${kindOrdinal}, ${serializerExpr}, "", fn(value : ${valueType}) { ${typeName}::${variant.variantName}(${wrappedValueExpr}) }, fn(input : ${typeName}) { if input is ${typeName}::${variant.variantName}(value) { ${extractedValueExpr} } else { ${defaultValueExpr} } })`,
+          `${adapterVarName}.add_wrapper_variant(${nameLiteral}, ${number}, ${kindOrdinal}, ${serializerExpr}, ${toMoonbitStringLiteral(docToCommentText(variant.field.doc))}, fn(value : ${valueType}) { ${typeName}::${variant.variantName}(${wrappedValueExpr}) }, fn(input : ${typeName}) { if input is ${typeName}::${variant.variantName}(value) { ${extractedValueExpr} } else { ${defaultValueExpr} } })`,
         );
       }
       kindOrdinal = kindOrdinal + 1;
@@ -414,9 +429,9 @@ class MoonbitSourceFileGenerator {
       out.push(
         `let ${adapterVarName} : @runtime.EnumAdapter[${typeName}] = @runtime.EnumAdapter::new(\n`,
       );
-      out.push(`  ${moduleName},\n`);
-      out.push(`  ${typeNameLiteral},\n`);
+      out.push(`  ${recordIdLiteral},\n`);
       out.push('  "",\n');
+      out.push(`  ${recordDocLiteral},\n`);
       out.push(`  ${unknownVarName},\n`);
       out.push(`  fn(input : ${typeName}) {\n`);
       out.push("    match input {\n");
@@ -464,9 +479,9 @@ class MoonbitSourceFileGenerator {
         `fn ${adapterInitFnName}() -> @runtime.EnumAdapter[${typeName}] {\n`,
       );
       out.push("  let adapter = @runtime.EnumAdapter::new(\n");
-      out.push(`    ${moduleName},\n`);
-      out.push(`    ${typeNameLiteral},\n`);
+      out.push(`    ${recordIdLiteral},\n`);
       out.push('    "",\n');
+      out.push(`    ${recordDocLiteral},\n`);
       out.push(`    ${unknownVarName},\n`);
       out.push(`    fn(input : ${typeName}) {\n`);
       out.push("      match input {\n");
@@ -546,6 +561,35 @@ class MoonbitSourceFileGenerator {
       out.push("  }\n");
       out.push("}\n\n");
     }
+  }
+
+  private writeMethod(method: Method, out: string[]): void {
+    if (!method.requestType || !method.responseType) {
+      return;
+    }
+
+    const methodName = `${convertCase(method.name.text, "lower_underscore")}_method`;
+    const requestType = this.typeSpeller.getMoonbitType(method.requestType);
+    const responseType = this.typeSpeller.getMoonbitType(method.responseType);
+    const requestSerializer = this.typeSpeller.getMoonbitSerializerExpr(
+      method.requestType,
+    );
+    const responseSerializer = this.typeSpeller.getMoonbitSerializerExpr(
+      method.responseType,
+    );
+
+    out.push(commentify(docToCommentText(method.doc)));
+    out.push(
+      `pub fn ${methodName}() -> @client.Method[${requestType}, ${responseType}] {\n`,
+    );
+    out.push("  @client.Method::new(\n");
+    out.push(`    ${toMoonbitStringLiteral(method.name.text)},\n`);
+    out.push(`    ${method.number},\n`);
+    out.push(`    ${requestSerializer},\n`);
+    out.push(`    ${responseSerializer},\n`);
+    out.push(`    ${toMoonbitStringLiteral(docToCommentText(method.doc))},\n`);
+    out.push("  )\n");
+    out.push("}\n\n");
   }
 
   private writeKeyedVectorWrappers(
@@ -688,7 +732,9 @@ class MoonbitSourceFileGenerator {
     const serializerExpr =
       field.isRecursive === "hard"
         ? `@runtime.recursive_serializer(${this.getSerializerExpr(resolvedType)})`
-        : this.getSerializerExpr(resolvedType);
+        : isKeyedArrayField
+          ? `@runtime.keyed_vector_serializer(${this.getSerializerExpr(resolvedType.item)}, ${this.toMoonbitStringLiteral(resolvedType.key!.path.map((part) => part.name.text).join("."))})`
+          : this.getSerializerExpr(resolvedType);
 
     const normalFieldType = this.typeSpeller.getMoonbitFieldType(field);
     let setterValueType = normalFieldType;
@@ -711,7 +757,9 @@ class MoonbitSourceFileGenerator {
     lines.push(`  fn(input : ${typeName}, value : ${setterValueType}) {`);
     lines.push(`    input.${fieldName} = ${setterExpr}`);
     lines.push("  },");
-    lines.push('  "",');
+    lines.push(
+      `  ${this.toMoonbitStringLiteral(docToCommentText(field.doc))},`,
+    );
     lines.push(")");
     return lines;
   }
@@ -745,6 +793,38 @@ function generateMoonPkg(module: Module): string {
 
 function shouldImportModule(importedNames: ImportedNames): boolean {
   return importedNames.kind === "all" || importedNames.names.size > 0;
+}
+
+function commentify(textOrLines: string | readonly string[]): string {
+  const text = (
+    typeof textOrLines === "string" ? textOrLines : textOrLines.join("\n")
+  )
+    .trim()
+    .replace(/\n{3,}/g, "\n\n");
+  if (text.length <= 0) {
+    return "";
+  }
+  return text
+    .split("\n")
+    .map((line) => (line.length > 0 ? `/// ${line}\n` : "///\n"))
+    .join("");
+}
+
+function docToCommentText(doc: Doc): string {
+  return doc.pieces
+    .map((piece) => {
+      switch (piece.kind) {
+        case "text":
+          return piece.text;
+        case "reference":
+          return `\`${piece.referenceRange.text.slice(1, -1)}\``;
+      }
+    })
+    .join("");
+}
+
+function toMoonbitStringLiteral(value: string): string {
+  return JSON.stringify(value);
 }
 
 const SKIROUT_PACKAGE_PREFIX = "skir/e2e-tests/skirout";

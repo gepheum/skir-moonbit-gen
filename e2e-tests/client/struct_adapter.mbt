@@ -3,6 +3,7 @@ priv struct StructFieldEntry[T] {
   name : String
   doc : String
   field_type : TypeSignature
+  field_records : Array[RecordDescriptor]
   is_field_default : (T) -> Bool
   field_to_json : (T, StringBuilder, Bool, String) -> Unit
   field_from_json : (T, Json, UnrecognizedValues) -> Result[Unit, String]
@@ -54,11 +55,13 @@ pub fn[T, V] StructAdapter::add_field(
   setter : (T, V) -> Unit,
   doc : String,
 ) -> Unit {
+  let field_td = serializer.type_descriptor()
   let entry : StructFieldEntry[T] = {
     number,
     name,
     doc,
-    field_type: serializer.type_descriptor().root_type,
+    field_type: field_td.root_type,
+    field_records: field_td.records,
     is_field_default: fn(input : T) { serializer.is_default(getter(input)) },
     field_to_json: fn(input : T, out : StringBuilder, readable : Bool, _indent : String) {
       let value = getter(input)
@@ -290,6 +293,37 @@ fn struct_append_json_string(builder : StringBuilder, s : String) -> Unit {
   builder.write_char('"')
 }
 
+fn struct_record_id(record : RecordDescriptor) -> String {
+  match record {
+    RecordDescriptor::Struct(value) => value.record_id
+    RecordDescriptor::Enum(value) => value.record_id
+  }
+}
+
+fn[T] StructAdapter::full_record_id(self : StructAdapter[T]) -> String {
+  if self.qualified_name == "" {
+    self.module_path
+  } else {
+    self.module_path + "." + self.qualified_name
+  }
+}
+
+fn struct_append_unique_records(target : Array[RecordDescriptor], source : Array[RecordDescriptor]) -> Unit {
+  for record in source {
+    let record_id = struct_record_id(record)
+    let mut seen = false
+    for existing in target {
+      if struct_record_id(existing) == record_id {
+        seen = true
+        break
+      }
+    }
+    if !seen {
+      target.push(record)
+    }
+  }
+}
+
 fn struct_should_keep_unrecognized(policy : UnrecognizedValues) -> Bool {
   match policy {
     UnrecognizedValues::Keep => true
@@ -402,7 +436,7 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
       if total_slot_count <= 3 {
         cur = cur.write_int(246 + total_slot_count)
       } else {
-        cur = cur.write_ints([250, ..encode_u32_le(total_slot_count)])
+        cur = cur.write_ints([250, ..encode_i32(total_slot_count)])
       }
 
       let recognized_count = self.slot_to_index.length()
@@ -506,16 +540,22 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
           doc: e.doc,
         })
       }
+      let records : Array[RecordDescriptor] = []
+      let record_id = self.full_record_id()
+      records.push(
+        RecordDescriptor::Struct({
+          record_id,
+          doc: self.doc,
+          removed_numbers: self.removed_numbers,
+          fields,
+        }),
+      )
+      for e in self.ordered_entries {
+        struct_append_unique_records(records, e.field_records)
+      }
       {
-        root_type: TypeSignature::Record(self.module_path + "." + self.qualified_name),
-        records: [
-          RecordDescriptor::Struct({
-            record_id: self.module_path + "." + self.qualified_name,
-            doc: self.doc,
-            removed_numbers: self.removed_numbers,
-            fields,
-          }),
-        ],
+        root_type: TypeSignature::Record(record_id),
+        records,
       }
     },
   })

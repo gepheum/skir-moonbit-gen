@@ -12,6 +12,7 @@ priv struct EnumVariantEntry[T] {
   wrap_from_json : (Json, UnrecognizedValues) -> Result[T, String]
   wrap_decode : (InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
   descriptor_variant : EnumVariant
+  child_records : Array[RecordDescriptor]
 }
 
 pub struct EnumAdapter[T] {
@@ -101,6 +102,7 @@ pub fn[T] EnumAdapter::add_constant_variant(
     wrap_from_json: fn(_json, _policy) { Err("variant '" + name + "' is a constant, not a wrapper") },
     wrap_decode: fn(_input, _policy) { Err("variant '" + name + "' is a constant, not a wrapper") },
     descriptor_variant: EnumVariant::Constant({ name, number, doc }),
+    child_records: [],
   }
   self.set_kind_ordinal_entry(kind_ordinal, entry)
   self.desc_variants.push(entry.descriptor_variant)
@@ -118,6 +120,7 @@ pub fn[T, V] EnumAdapter::add_wrapper_variant(
 ) -> Unit {
   self.number_to_entry.set(number, EnumAnyEntry::Wrapper(kind_ordinal))
   self.name_to_kind_ordinal.set(name, kind_ordinal)
+  let variant_td = serializer.type_descriptor()
 
   let entry : EnumVariantEntry[T] = {
     constant: fn() { None },
@@ -155,7 +158,7 @@ pub fn[T, V] EnumAdapter::add_wrapper_variant(
         out = out.write_int(250 + number)
       } else {
         out = out.write_int(248)
-        out = out.write_ints(encode_u32_le(number))
+        out = out.write_ints(encode_i32(number))
       }
       (serializer.adapter.encode)(get_value(input), out)
     },
@@ -174,9 +177,10 @@ pub fn[T, V] EnumAdapter::add_wrapper_variant(
     descriptor_variant: EnumVariant::Wrapper({
       name,
       number,
-      variant_type: serializer.type_descriptor().root_type,
+      variant_type: variant_td.root_type,
       doc,
     }),
+    child_records: variant_td.records,
   }
 
   self.set_kind_ordinal_entry(kind_ordinal, entry)
@@ -231,6 +235,37 @@ fn enum_int_array_to_bytes(bytes : Array[Int]) -> Bytes {
     out.push(b.to_byte())
   }
   Bytes::from_array(out)
+}
+
+fn enum_record_id(record : RecordDescriptor) -> String {
+  match record {
+    RecordDescriptor::Struct(value) => value.record_id
+    RecordDescriptor::Enum(value) => value.record_id
+  }
+}
+
+fn[T] EnumAdapter::full_record_id(self : EnumAdapter[T]) -> String {
+  if self.qualified_name == "" {
+    self.module_path
+  } else {
+    self.module_path + "." + self.qualified_name
+  }
+}
+
+fn enum_append_unique_records(target : Array[RecordDescriptor], source : Array[RecordDescriptor]) -> Unit {
+  for record in source {
+    let record_id = enum_record_id(record)
+    let mut seen = false
+    for existing in target {
+      if enum_record_id(existing) == record_id {
+        seen = true
+        break
+      }
+    }
+    if !seen {
+      target.push(record)
+    }
+  }
 }
 
 fn enum_append_json_string(builder : StringBuilder, s : String) -> Unit {
@@ -425,7 +460,7 @@ pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
       let ko = (self.get_kind_ordinal)(input)
       if ko == 0 {
         match (self.get_unrecognized)(input) {
-          Some(u) if u.format == UnrecognizedFormat::Bytes => {
+          Some(u) if u.format == UnrecognizedFormat::Bytes && !u.value.is_empty() => {
             let out = out0
             out.write_bytes(u.value)
           }
@@ -535,16 +570,25 @@ pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
       }
     },
     type_descriptor: fn() {
+      let records : Array[RecordDescriptor] = []
+      let record_id = self.full_record_id()
+      records.push(
+        RecordDescriptor::Enum({
+          record_id,
+          doc: self.doc,
+          removed_numbers: self.removed_numbers,
+          variants: self.desc_variants,
+        }),
+      )
+      for entry_opt in self.kind_ordinal_to_entry {
+        match entry_opt {
+          Some(entry) => enum_append_unique_records(records, entry.child_records)
+          None => ()
+        }
+      }
       {
-        root_type: TypeSignature::Record(self.module_path + "." + self.qualified_name),
-        records: [
-          RecordDescriptor::Enum({
-            record_id: self.module_path + "." + self.qualified_name,
-            doc: self.doc,
-            removed_numbers: self.removed_numbers,
-            variants: self.desc_variants,
-          }),
-        ],
+        root_type: TypeSignature::Record(record_id),
+        records,
       }
     },
   })

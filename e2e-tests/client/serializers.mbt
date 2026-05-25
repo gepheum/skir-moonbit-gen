@@ -134,6 +134,14 @@ fn encode_length_prefixed_bytes(out : OutputStream, wire : Int, length : Int) ->
   }
 }
 
+fn json_number_or_quoted_string(code : String) -> Json {
+  if code == "Infinity" || code == "-Infinity" || code == "NaN" {
+    parse_json("\"" + code + "\"")
+  } else {
+    parse_json(code)
+  }
+}
+
 fn decode_number_with_tail(input : InputStream) -> Result[(Int64, InputStream), String] {
   match input.read_int() {
     Ok((wire, rest)) => decode_number_body(wire, rest)
@@ -562,6 +570,15 @@ fn parse_int64_or_zero(s : String) -> Int64 {
   }
 }
 
+fn json_number_looks_integral(raw : String) -> Bool {
+  for ch in raw.iter() {
+    if ch == '.' || ch == 'e' || ch == 'E' {
+      return false
+    }
+  }
+  true
+}
+
 fn parse_uint64_or_zero(s : String) -> UInt64 {
   try {
     @string.parse_uint64(s)
@@ -710,7 +727,14 @@ pub fn int64_serializer() -> Serializer[Int64] {
     },
     from_json: fn(json : Json, _policy : UnrecognizedValues) {
       match json {
-        Json::Number(n, ..) => Ok(n.round().to_int64())
+        Json::Number(n) => {
+          let raw = json.stringify()
+          if json_number_looks_integral(raw) {
+            Ok(parse_int64_or_zero(raw))
+          } else {
+            Ok(n.round().to_int64())
+          }
+        }
         Json::String(s) => Ok(parse_int64_or_zero(s))
         _ => Ok(0L)
       }
@@ -793,9 +817,14 @@ pub fn float32_serializer() -> Serializer[Float] {
   new_serializer({
     is_default: fn(input : Float) { input == 0.0 },
     to_dense_json: fn(input : Float, builder : StringBuilder) {
-      builder.write_string(input.to_string())
+      let code = input.to_string()
+      if code == "Infinity" || code == "-Infinity" || code == "NaN" {
+        builder.write_string("\"" + code + "\"")
+      } else {
+        builder.write_string(code)
+      }
     },
-    to_readable_json: fn(input : Float) { parse_json(input.to_string()) },
+    to_readable_json: fn(input : Float) { json_number_or_quoted_string(input.to_string()) },
     from_json: fn(json : Json, _policy : UnrecognizedValues) {
       match json {
         Json::Number(n, ..) => Ok(Float::from_double(n))
@@ -836,9 +865,14 @@ pub fn float64_serializer() -> Serializer[Double] {
   new_serializer({
     is_default: fn(input : Double) { input == 0.0 },
     to_dense_json: fn(input : Double, builder : StringBuilder) {
-      builder.write_string(input.to_string())
+      let code = input.to_string()
+      if code == "Infinity" || code == "-Infinity" || code == "NaN" {
+        builder.write_string("\"" + code + "\"")
+      } else {
+        builder.write_string(code)
+      }
     },
-    to_readable_json: fn(input : Double) { parse_json(input.to_string()) },
+    to_readable_json: fn(input : Double) { json_number_or_quoted_string(input.to_string()) },
     from_json: fn(json : Json, _policy : UnrecognizedValues) {
       match json {
         Json::Number(n, ..) => Ok(n)
@@ -1042,8 +1076,9 @@ pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]
   })
 }
 
-pub fn[T] vector_serializer(
-  item_serializer : Serializer[T]
+fn[T] vector_serializer_impl(
+  item_serializer : Serializer[T],
+  key_extractor : String,
 ) -> Serializer[@immut_vector.Vector[T]] {
   new_serializer({
     is_default: fn(input : @immut_vector.Vector[T]) { input.is_empty() },
@@ -1094,7 +1129,7 @@ pub fn[T] vector_serializer(
       if n <= 3 {
         cur = cur.write_int(246 + n)
       } else {
-        cur = cur.write_ints([250, ..encode_u32_le(n)])
+        cur = cur.write_ints([250, ..encode_i32(n)])
       }
       for item in input.iter() {
         cur = (item_serializer.adapter.encode)(item, cur)
@@ -1110,7 +1145,7 @@ pub fn[T] vector_serializer(
           let mut cur = rest
           let n =
             if wire == 250 {
-              match read_u32(cur) {
+              match decode_number_with_tail(cur) {
                 Ok((n64, next)) => {
                   cur = next
                   n64.to_int()
@@ -1142,12 +1177,25 @@ pub fn[T] vector_serializer(
       {
         root_type: TypeSignature::Array({
           item_type: item_td.root_type,
-          key_extractor: "",
+          key_extractor,
         }),
         records: item_td.records,
       }
     },
   })
+}
+
+pub fn[T] vector_serializer(
+  item_serializer : Serializer[T]
+) -> Serializer[@immut_vector.Vector[T]] {
+  vector_serializer_impl(item_serializer, "")
+}
+
+pub fn[T] keyed_vector_serializer(
+  item_serializer : Serializer[T],
+  key_extractor : String,
+) -> Serializer[@immut_vector.Vector[T]] {
+  vector_serializer_impl(item_serializer, key_extractor)
 }
 
 fn[T] immut_from_array(items : Array[T]) -> @immut_vector.Vector[T] {
