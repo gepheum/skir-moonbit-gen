@@ -1316,52 +1316,52 @@ test "to_json_readable_false" {
 
 test "from_json_bool_literal" {
   let s = bool_serializer()
-  assert_eq(expect_ok_bool(s.from_json("true", UnrecognizedValues::Drop)), true)
-  assert_eq(expect_ok_bool(s.from_json("false", UnrecognizedValues::Drop)), false)
+  assert_eq(expect_ok_bool(s.from_json("true")), true)
+  assert_eq(expect_ok_bool(s.from_json("false")), false)
 }
 
 test "from_json_number_1_and_0" {
   let s = bool_serializer()
-  assert_eq(expect_ok_bool(s.from_json("1", UnrecognizedValues::Drop)), true)
-  assert_eq(expect_ok_bool(s.from_json("0", UnrecognizedValues::Drop)), false)
-  assert_eq(expect_ok_bool(s.from_json("1", UnrecognizedValues::Keep)), true)
+  assert_eq(expect_ok_bool(s.from_json("1")), true)
+  assert_eq(expect_ok_bool(s.from_json("0")), false)
+  assert_eq(expect_ok_bool(s.from_json("1", unrecognized_values=UnrecognizedValues::Keep)), true)
 }
 
 test "from_json_number_nonzero" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("42", UnrecognizedValues::Drop)),
+    expect_ok_bool(bool_serializer().from_json("42")),
     true,
   )
 }
 
 test "from_json_float_zero" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("0.0", UnrecognizedValues::Drop)),
+    expect_ok_bool(bool_serializer().from_json("0.0")),
     false,
   )
 }
 
 test "from_json_string_zero_is_false" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("\"0\"", UnrecognizedValues::Drop)),
+    expect_ok_bool(bool_serializer().from_json("\"0\"")),
     false,
   )
 }
 
 test "from_json_string_nonzero_is_true" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("\"1\"", UnrecognizedValues::Drop)),
+    expect_ok_bool(bool_serializer().from_json("\"1\"")),
     true,
   )
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("\"true\"", UnrecognizedValues::Drop)),
+    expect_ok_bool(bool_serializer().from_json("\"true\"")),
     true,
   )
 }
 
 test "from_json_null_is_false" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("null", UnrecognizedValues::Drop)),
+    expect_ok_bool(bool_serializer().from_json("null")),
     false,
   )
 }
@@ -1369,13 +1369,13 @@ test "from_json_null_is_false" {
 test "binary_round_trip_true" {
   let s = bool_serializer()
   let bytes = s.to_bytes(true)
-  assert_eq(expect_ok_bool(s.from_bytes(bytes, UnrecognizedValues::Drop)), true)
+  assert_eq(expect_ok_bool(s.from_bytes(bytes)), true)
 }
 
 test "binary_round_trip_false" {
   let s = bool_serializer()
   let bytes = s.to_bytes(false)
-  assert_eq(expect_ok_bool(s.from_bytes(bytes, UnrecognizedValues::Drop)), false)
+  assert_eq(expect_ok_bool(s.from_bytes(bytes)), false)
 }
 
 test "binary_encoding_true_is_skir_then_1" {
@@ -1405,14 +1405,14 @@ test "int32_to_json_positive" {
 }
 
 test "int32_from_json_float_truncates" {
-  assert_eq(expect_ok_int(int32_serializer().from_json("3.9", UnrecognizedValues::Drop)), 3)
-  assert_eq(expect_ok_int(int32_serializer().from_json("-1.5", UnrecognizedValues::Drop)), -1)
+  assert_eq(expect_ok_int(int32_serializer().from_json("3.9")), 3)
+  assert_eq(expect_ok_int(int32_serializer().from_json("-1.5")), -1)
 }
 
 test "int32_binary_round_trip" {
   let s = int32_serializer()
   for v in [0, 1, 42, 231, 232, 300, 65535, 65536, -1, -255, -256, -65536, -100000] {
-    assert_eq(expect_ok_int(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+    assert_eq(expect_ok_int(s.from_bytes(s.to_bytes(v))), v)
   }
 }
 
@@ -1425,7 +1425,7 @@ test "int64_to_json_large_value_is_quoted" {
 
 test "int64_from_json_quoted_large" {
   assert_eq(
-    expect_ok_int64(int64_serializer().from_json("\"9007199254740992\"", UnrecognizedValues::Drop)),
+    expect_ok_int64(int64_serializer().from_json("\"9007199254740992\"")),
     9007199254740992L,
   )
 }
@@ -1444,7 +1444,7 @@ test "int64_binary_round_trip" {
     -2147483648L,
     -2147483649L,
   ] {
-    assert_eq(expect_ok_int64(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+    assert_eq(expect_ok_int64(s.from_bytes(s.to_bytes(v))), v)
   }
 }
 
@@ -1457,7 +1457,7 @@ test "hash64_to_json_large_value_is_quoted" {
 
 test "hash64_from_json_negative_number_is_zero" {
   assert_eq(
-    expect_ok_uint64(hash64_serializer().from_json("-1.0", UnrecognizedValues::Drop)),
+    expect_ok_uint64(hash64_serializer().from_json("-1.0")),
     0UL,
   )
 }
@@ -1465,7 +1465,7 @@ test "hash64_from_json_negative_number_is_zero" {
 test "hash64_binary_round_trip" {
   let s = hash64_serializer()
   for v in [0UL, 1UL, 231UL, 232UL, 65535UL, 65536UL, 4294967295UL, 4294967296UL] {
-    assert_eq(expect_ok_uint64(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+    assert_eq(expect_ok_uint64(s.from_bytes(s.to_bytes(v))), v)
   }
 }
 
@@ -1475,7 +1475,7 @@ test "float32_to_json" {
 
 test "float32_from_json_string" {
   assert_eq(
-    expect_ok_float(float32_serializer().from_json("\"3.25\"", UnrecognizedValues::Drop)),
+    expect_ok_float(float32_serializer().from_json("\"3.25\"")),
     Float::from_double(3.25),
   )
 }
@@ -1483,7 +1483,7 @@ test "float32_from_json_string" {
 test "float32_binary_round_trip" {
   let s = float32_serializer()
   for v in [Float::from_double(0.0), Float::from_double(1.5), Float::from_double(-2.25)] {
-    assert_eq(expect_ok_float(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+    assert_eq(expect_ok_float(s.from_bytes(s.to_bytes(v))), v)
   }
 }
 
@@ -1500,7 +1500,7 @@ test "float64_to_json" {
 
 test "float64_from_json_string" {
   assert_eq(
-    expect_ok_double(float64_serializer().from_json("\"3.25\"", UnrecognizedValues::Drop)),
+    expect_ok_double(float64_serializer().from_json("\"3.25\"")),
     3.25,
   )
 }
@@ -1508,7 +1508,7 @@ test "float64_from_json_string" {
 test "float64_binary_round_trip" {
   let s = float64_serializer()
   for v in [0.0, 1.5, -2.25, 123456789.125] {
-    assert_eq(expect_ok_double(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+    assert_eq(expect_ok_double(s.from_bytes(s.to_bytes(v))), v)
   }
 }
 
@@ -1536,7 +1536,7 @@ test "timestamp_to_json_readable" {
 
 test "timestamp_from_json_object_readable" {
   let json = "{\"unix_millis\":1234567890000,\"formatted\":\"ignored\"}"
-  let parsed = expect_ok_timestamp(timestamp_serializer().from_json(json, UnrecognizedValues::Drop))
+  let parsed = expect_ok_timestamp(timestamp_serializer().from_json(json))
   assert_eq(parsed.unix_millis(), 1234567890000L)
 }
 
@@ -1545,7 +1545,7 @@ test "timestamp_binary_round_trip" {
   for ms in [0L, 1L, 1234567890000L, -1000L] {
     let ts = Timestamp::from_unix_millis(ms)
     let decoded =
-      expect_ok_timestamp(s.from_bytes(s.to_bytes(ts), UnrecognizedValues::Drop)).unix_millis()
+      expect_ok_timestamp(s.from_bytes(s.to_bytes(ts))).unix_millis()
     assert_eq(decoded, Timestamp::from_unix_millis(ms).unix_millis())
   }
 }
@@ -1570,7 +1570,7 @@ test "array_to_json_dense_nonempty" {
 test "array_from_json_null_is_empty" {
   let s = vector_serializer(int32_serializer())
   assert_eq(
-    expect_ok_immut_int_array(s.from_json("null", UnrecognizedValues::Drop)),
+    expect_ok_immut_int_array(s.from_json("null")),
     @immut_vector.Vector::new(),
   )
 }
@@ -1589,7 +1589,7 @@ test "array_binary_round_trip" {
     immut_from_array([-1, 0, 1]),
   ] {
     assert_eq(
-      expect_ok_immut_int_array(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)),
+      expect_ok_immut_int_array(s.from_bytes(s.to_bytes(v))),
       v,
     )
   }
@@ -1606,7 +1606,7 @@ test "optional_to_json_some_delegates" {
 test "optional_from_json_value_is_some" {
   assert_eq(
     expect_ok_optional_int(
-      optional_serializer(int32_serializer()).from_json("7", UnrecognizedValues::Drop),
+      optional_serializer(int32_serializer()).from_json("7"),
     ),
     Some(7),
   )
@@ -1622,7 +1622,7 @@ test "optional_encode_none_is_wire_255" {
 test "optional_binary_round_trip" {
   let s = optional_serializer(int32_serializer())
   for v in [None, Some(0), Some(42), Some(-1)] {
-    assert_eq(expect_ok_optional_int(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)), v)
+    assert_eq(expect_ok_optional_int(s.from_bytes(s.to_bytes(v))), v)
   }
 }
 
@@ -1640,7 +1640,7 @@ test "recursive_to_json_readable_default_is_empty_object" {
 test "recursive_from_json_empty_array_is_default" {
   assert_recursive_int_eq(
     expect_ok_recursive_int(
-      recursive_serializer(int32_serializer()).from_json("[]", UnrecognizedValues::Drop),
+      recursive_serializer(int32_serializer()).from_json("[]"),
     ),
     Recursive::Default,
   )
@@ -1649,7 +1649,7 @@ test "recursive_from_json_empty_array_is_default" {
 test "recursive_from_json_empty_object_is_default" {
   assert_recursive_int_eq(
     expect_ok_recursive_int(
-      recursive_serializer(int32_serializer()).from_json("{}", UnrecognizedValues::Drop),
+      recursive_serializer(int32_serializer()).from_json("{}"),
     ),
     Recursive::Default,
   )
@@ -1666,7 +1666,7 @@ test "recursive_binary_round_trip" {
   let s = recursive_serializer(int32_serializer())
   for v in [Recursive::Default, Recursive::Some(0), Recursive::Some(42), Recursive::Some(-1)] {
     assert_recursive_int_eq(
-      expect_ok_recursive_int(s.from_bytes(s.to_bytes(v), UnrecognizedValues::Drop)),
+      expect_ok_recursive_int(s.from_bytes(s.to_bytes(v))),
       v,
     )
   }

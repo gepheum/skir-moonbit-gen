@@ -1,33 +1,5 @@
-pub enum UnrecognizedValues {
-  Keep
-  Drop
-}
-
-pub fn unrecognized_values_keep() -> UnrecognizedValues {
-  UnrecognizedValues::Keep
-}
-
-pub fn unrecognized_values_drop() -> UnrecognizedValues {
-  UnrecognizedValues::Drop
-}
-
-struct TypeAdapter[T] {
-  is_default : (T) -> Bool
-  to_dense_json : (T, StringBuilder) -> Unit
-  to_readable_json : (T) -> Json
-  from_json : (Json, UnrecognizedValues) -> Result[T, String]
-  encode : (T, OutputStream) -> OutputStream
-  decode : (InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
-  type_descriptor : () -> TypeDescriptor
-}
-
 pub struct Serializer[T] {
   priv adapter : TypeAdapter[T]
-}
-
-fn[T] new_serializer(adapter : TypeAdapter[T]) -> Serializer[T] {
-  let s : Serializer[T] = { adapter, }
-  s
 }
 
 pub fn[T] Serializer::to_dense_json(self : Serializer[T], input : T) -> String {
@@ -43,7 +15,7 @@ pub fn[T] Serializer::to_readable_json(self : Serializer[T], input : T) -> Json 
 pub fn[T] Serializer::from_json(
   self : Serializer[T],
   code : String,
-  policy : UnrecognizedValues
+  unrecognized_values~ : UnrecognizedValues = UnrecognizedValues::Drop
 ) -> Result[T, String] {
   let root =
     try {
@@ -51,7 +23,7 @@ pub fn[T] Serializer::from_json(
     } catch {
       _ => return Err("invalid JSON")
     }
-  (self.adapter.from_json)(root, policy)
+  (self.adapter.from_json)(root, unrecognized_values)
 }
 
 pub fn[T] Serializer::to_bytes(self : Serializer[T], input : T) -> Array[Int] {
@@ -67,13 +39,13 @@ pub fn[T] Serializer::to_bytes(self : Serializer[T], input : T) -> Array[Int] {
 pub fn[T] Serializer::from_bytes(
   self : Serializer[T],
   bytes : Array[Int],
-  policy : UnrecognizedValues
+  unrecognized_values~ : UnrecognizedValues = UnrecognizedValues::Drop
 ) -> Result[T, String] {
   match bytes {
       [115, 107, 105, 114, ..payload] =>
         match (self.adapter.decode)(
           InputStream::from_int_array(payload.iter().to_array()),
-          policy,
+          unrecognized_values,
         ) {
           Ok((value, _tail)) => Ok(value)
           Err(e) => Err(e)
@@ -82,6 +54,26 @@ pub fn[T] Serializer::from_bytes(
   }
 }
 
-  pub fn[T] Serializer::type_descriptor(self : Serializer[T]) -> TypeDescriptor {
-    (self.adapter.type_descriptor)()
+pub fn[T] Serializer::type_descriptor(self : Serializer[T]) -> TypeDescriptor {
+  (self.adapter.type_descriptor)()
+}
+
+pub(all) enum UnrecognizedValues {
+  Keep
+  Drop
+}
+
+struct TypeAdapter[T] {
+  is_default : (T) -> Bool
+  to_dense_json : (T, StringBuilder) -> Unit
+  to_readable_json : (T) -> Json
+  from_json : (Json, UnrecognizedValues) -> Result[T, String]
+  encode : (T, OutputStream) -> OutputStream
+  decode : (InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
+  type_descriptor : () -> TypeDescriptor
+}
+
+fn[T] new_serializer(adapter : TypeAdapter[T]) -> Serializer[T] {
+  let s : Serializer[T] = { adapter, }
+  s
 }

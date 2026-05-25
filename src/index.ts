@@ -1,9 +1,10 @@
+// TODO: add comments to Serializer
+// TODO: 
 // TODO: generate doc for client...
 // TODO: add unit tests
 // TODO: make Serializer.adapter private?
 // TODO: organize client lib...
 // TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
-// TODO: remove UnrecognizedValues enum, use named parameter for bool
 // TODO: figure out what symbols to actually export
 // TODO: make them comparable, renderable, etc.
 
@@ -141,7 +142,7 @@ class MoonbitSourceFileGenerator {
     );
     out.push(`pub let ${moonbitName} : ${moonbitType} =\n`);
     out.push(
-      `  match ${serializerExpr}.from_json(${jsonLiteral}, @client.unrecognized_values_drop()) {\n`,
+      `  match ${serializerExpr}.from_json(${jsonLiteral}) {\n`,
     );
     out.push("    Ok(value) => value\n");
     out.push("    Err(_) => panic()\n");
