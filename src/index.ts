@@ -109,7 +109,6 @@ class MoonbitSourceFileGenerator {
     const typeName = getTypeName(record);
 
     out.push(commentify(docToCommentText(record.record.doc)));
-    out.push(`// ${recordType} ${typeName}\n`);
     if (recordType === "struct") {
       this.writeStruct(record, out);
     } else {
@@ -191,34 +190,8 @@ class MoonbitSourceFileGenerator {
     out.push("}\n\n");
 
     out.push(
-      "/// Creates an instance where unspecified fields are set to their default values.\n",
-    );
-    out.push(`pub fn ${typeName}::partial(`);
-    if (fields.length > 0) {
-      out.push("\n");
-      for (const field of fields) {
-        const fieldName = toStructFieldName(field.name.text);
-        const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
-        const defaultValue = this.typeSpeller.getMoonbitFieldDefault(field);
-        out.push(`  ${fieldName}~ : ${moonbitType}=${defaultValue},\n`);
-      }
-    }
-    out.push(`) -> ${typeName} {\n`);
-    if (fields.length === 0) {
-      out.push(`  ${typeName}::new()\n`);
-    } else {
-      out.push(`  ${typeName}::new(\n`);
-      for (const field of fields) {
-        const fieldName = toStructFieldName(field.name.text);
-        out.push(`    ${fieldName}=${fieldName},\n`);
-      }
-      out.push("  )\n");
-    }
-    out.push("}\n\n");
-
-    out.push(
       "/// Returns a copy with selected fields replaced.\n" +
-      "/// Fields not explicitly set keep their previous values.\n",
+        "/// Fields not explicitly set keep their previous values.\n",
     );
     out.push(`pub fn ${typeName}::copy(\n`);
     out.push(`  ${copySelfName} : ${typeName},\n`);
@@ -243,7 +216,7 @@ class MoonbitSourceFileGenerator {
     out.push("  }\n");
     out.push("}\n\n");
 
-    out.push("/// All fields are set to their default values.\n");
+    out.push("/// An instance with all fields set to their default values.\n");
     out.push(`pub fn ${typeName}::default() -> ${typeName} {\n`);
     if (fields.length === 0) {
       out.push(`  ${typeName}::new()\n`);

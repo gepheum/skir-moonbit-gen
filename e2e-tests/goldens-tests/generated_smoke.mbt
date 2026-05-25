@@ -9,9 +9,11 @@ test "generated_full_name_struct_helpers_and_roundtrip" {
   assert_eq(changed.first_name, "Ada")
   assert_eq(changed.last_name, "Byron")
 
-  let from_partial = @full_name.FullName::partial(first_name="Grace")
-  assert_eq(from_partial.first_name, "Grace")
-  assert_eq(from_partial.last_name, "")
+  let from_default_copy = @full_name.FullName::default().copy(
+    first_name=Set("Grace"),
+  )
+  assert_eq(from_default_copy.first_name, "Grace")
+  assert_eq(from_default_copy.last_name, "")
 
   let serializer = @full_name.FullName::serializer()
   let dense = serializer.to_dense_json_code(changed)
