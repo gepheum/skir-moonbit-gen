@@ -190,6 +190,9 @@ class MoonbitSourceFileGenerator {
     out.push("  }\n");
     out.push("}\n\n");
 
+    out.push(
+      "/// Creates an instance where unspecified fields are set to their default values.\n",
+    );
     out.push(`pub fn ${typeName}::partial(`);
     if (fields.length > 0) {
       out.push("\n");
@@ -213,6 +216,10 @@ class MoonbitSourceFileGenerator {
     }
     out.push("}\n\n");
 
+    out.push(
+      "/// Returns a copy with selected fields replaced.\n" +
+      "/// Fields not explicitly set keep their previous values.\n",
+    );
     out.push(`pub fn ${typeName}::copy(\n`);
     out.push(`  ${copySelfName} : ${typeName},\n`);
     for (const field of fields) {
@@ -236,6 +243,9 @@ class MoonbitSourceFileGenerator {
     out.push("  }\n");
     out.push("}\n\n");
 
+    out.push(
+      "/// All fields are set to their default values.\n",
+    );
     out.push(`pub fn ${typeName}::default() -> ${typeName} {\n`);
     if (fields.length === 0) {
       out.push(`  ${typeName}::new()\n`);
