@@ -243,9 +243,7 @@ class MoonbitSourceFileGenerator {
     out.push("  }\n");
     out.push("}\n\n");
 
-    out.push(
-      "/// All fields are set to their default values.\n",
-    );
+    out.push("/// All fields are set to their default values.\n");
     out.push(`pub fn ${typeName}::default() -> ${typeName} {\n`);
     if (fields.length === 0) {
       out.push(`  ${typeName}::new()\n`);
