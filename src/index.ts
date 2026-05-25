@@ -23,10 +23,10 @@ import {
 } from "./keyed_array_context.js";
 import {
   getTypeName,
+  getTypeNameLower,
   modulePathToAlias,
   modulePathToFileStem,
   modulePathToPackageDir,
-  toEnumVariantName,
   toStructFieldName,
 } from "./naming.js";
 import { TypeSpeller } from "./type_speller.js";
@@ -111,7 +111,7 @@ class MoonbitSourceFileGenerator {
 
   private writeRecord(record: RecordLocation, out: string[]): void {
     const recordType = record.record.recordType;
-    const typeName = this.getTypeName(record);
+    const typeName = getTypeName(record);
 
     out.push(`// ${recordType} ${typeName}\n`);
     if (recordType === "struct") {
@@ -119,10 +119,6 @@ class MoonbitSourceFileGenerator {
     } else {
       this.writeEnum(record, out);
     }
-  }
-
-  private getTypeName(record: RecordLocation): string {
-    return getTypeName(record);
   }
 
   private writeConstant(constant: Constant, out: string[]): void {
@@ -147,11 +143,12 @@ class MoonbitSourceFileGenerator {
   private writeStruct(record: RecordLocation, out: string[]): void {
     const fields = record.record.fields;
     const removedNumbers = record.record.removedNumbers;
-    const typeName = this.getTypeName(record);
+    const typeName = getTypeName(record);
+    const typeNameLower = getTypeNameLower(record);
     const mutableTypeName = `${typeName}_mutable`;
-    const adapterVarName = `${typeName.toLowerCase()}__adapter`;
-    const newMutableFnName = `${typeName.toLowerCase()}__new_mutable`;
-    const toFrozenFnName = `${typeName.toLowerCase()}__to_frozen`;
+    const adapterVarName = `${typeNameLower}__adapter`;
+    const newMutableFnName = `${typeNameLower}__new_mutable`;
+    const toFrozenFnName = `${typeNameLower}__to_frozen`;
     const isRecursive = this.isRecursiveRecord(fields);
     const recordIdLiteral = this.toMoonbitStringLiteral(
       `${record.modulePath}:${record.recordAncestors.map((ancestor) => ancestor.name.text).join(".")}`,
@@ -377,9 +374,10 @@ class MoonbitSourceFileGenerator {
   private writeEnum(record: RecordLocation, out: string[]): void {
     const variants = record.record.fields;
     const removedNumbers = record.record.removedNumbers;
-    const typeName = this.getTypeName(record);
-    const unknownVarName = `${typeName.toLowerCase()}__unknown`;
-    const adapterVarName = `${typeName.toLowerCase()}__adapter`;
+    const typeName = getTypeName(record);
+    const typeNameLower = getTypeNameLower(record);
+    const unknownVarName = `${typeNameLower}__unknown`;
+    const adapterVarName = `${typeNameLower}__adapter`;
     const isRecursive = this.isRecursiveRecord(variants);
     const recordIdLiteral = this.toMoonbitStringLiteral(
       `${record.modulePath}:${record.recordAncestors.map((ancestor) => ancestor.name.text).join(".")}`,
@@ -389,8 +387,6 @@ class MoonbitSourceFileGenerator {
     );
 
     out.push(`pub(all) enum ${typeName} {\n`);
-    const usedNames = new Set<string>();
-    usedNames.add("Unknown");
     out.push("  Unknown(@client.UnrecognizedVariant?)\n");
     const variantNames: Array<{
       field: Field;
@@ -398,8 +394,7 @@ class MoonbitSourceFileGenerator {
       variantName: string;
     }> = [];
     for (const variant of variants) {
-      const variantName = toEnumVariantName(variant.name.text, usedNames);
-      usedNames.add(variantName);
+      const variantName = convertCase(variant.name.text, "UpperCamel");
       variantNames.push({
         field: variant,
         hasPayload: !!variant.type,
@@ -639,7 +634,7 @@ class MoonbitSourceFileGenerator {
 
     for (const keySpec of keySpecs) {
       const wrapperTypeName = `${typeName}${keySpec.moonbitTypeSuffix}`;
-      const specVarName = `${wrapperTypeName.toLowerCase()}__spec`;
+      const specVarName = `${wrapperTypeName.replace(/_/g, "__").toLowerCase()}__spec`;
 
       out.push(
         `let ${specVarName} : @client.Internal_KeyedVectorSpec[${typeName}, ${keySpec.moonbitKeyType}] = {\n`,

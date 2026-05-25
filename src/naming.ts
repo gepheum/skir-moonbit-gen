@@ -18,36 +18,18 @@ export function modulePathToAlias(modulePath: string): string {
 }
 
 export function getTypeName(record: RecordLocation): string {
-  return record.recordAncestors
-    .map((r) => escapeTypeName(r.name.text))
-    .join("_");
+  return record.recordAncestors.map((r) => r.name.text).join("_");
+}
+
+export function getTypeNameLower(record: RecordLocation): string {
+  const { recordAncestors } = record;
+  return recordAncestors
+    .map((r) => convertCase(r.name.text, "lower_underscore"))
+    .join("__");
 }
 
 export function toStructFieldName(name: string): string {
-  let candidate = name;
-  while (isReservedIdentifier(candidate) || candidate === "_unrecognized") {
-    candidate = `${candidate}_`;
-  }
-  return candidate;
-}
-
-export function toEnumVariantName(
-  name: string,
-  usedNames: ReadonlySet<string>,
-): string {
-  let candidate = escapeTypeName(convertCase(name, "UpperCamel"));
-  while (usedNames.has(candidate)) {
-    candidate = `${candidate}_`;
-  }
-  return candidate;
-}
-
-function escapeTypeName(name: string): string {
-  let candidate = name;
-  while (isReservedIdentifier(candidate)) {
-    candidate = `${candidate}_`;
-  }
-  return candidate;
+  return isReservedIdentifier(name) ? `${name}_` : name;
 }
 
 function isReservedIdentifier(name: string): boolean {

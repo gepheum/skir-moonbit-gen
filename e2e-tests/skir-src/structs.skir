@@ -158,3 +158,6 @@ struct Float {
 
 struct Eq {}
 struct Hash {}
+
+struct FooBar {}
+struct Foobar {}
