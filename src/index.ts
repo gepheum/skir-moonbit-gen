@@ -17,7 +17,6 @@ import {
   type Module,
   type RecordKey,
   type RecordLocation,
-  type ResolvedType,
 } from "skir-internal";
 import { z } from "zod";
 import {
@@ -134,7 +133,9 @@ class MoonbitSourceFileGenerator {
     }
     const moonbitName = `${convertCase(constant.name.text, "lower_underscore")}_const`;
     const moonbitType = this.typeSpeller.getMoonbitType(constant.type);
-    const serializerExpr = this.getSerializerExpr(constant.type);
+    const serializerExpr = this.typeSpeller.getMoonbitSerializerExpr(
+      constant.type,
+    );
     const jsonLiteral = this.toMoonbitStringLiteral(
       JSON.stringify(constant.valueAsDenseJson),
     );
@@ -400,7 +401,8 @@ class MoonbitSourceFileGenerator {
           resolvedType.kind === "array" &&
           !!resolvedType.key &&
           keyTypeIsSupported(resolvedType.key.keyType);
-        const serializerExpr = this.getSerializerExpr(resolvedType);
+        const serializerExpr =
+          this.typeSpeller.getMoonbitSerializerExpr(resolvedType);
 
         let valueType = this.typeSpeller.getMoonbitType(resolvedType);
         let wrappedValueExpr = "value";
@@ -671,46 +673,6 @@ class MoonbitSourceFileGenerator {
     return JSON.stringify(value);
   }
 
-  private getSerializerExpr(type: ResolvedType): string {
-    switch (type.kind) {
-      case "primitive": {
-        switch (type.primitive) {
-          case "bool":
-            return "@client.bool_serializer()";
-          case "int32":
-            return "@client.int32_serializer()";
-          case "int64":
-            return "@client.int64_serializer()";
-          case "hash64":
-            return "@client.hash64_serializer()";
-          case "float32":
-            return "@client.float32_serializer()";
-          case "float64":
-            return "@client.float64_serializer()";
-          case "timestamp":
-            return "@client.timestamp_serializer()";
-          case "string":
-            return "@client.string_serializer()";
-          case "bytes":
-            return "@client.bytes_serializer()";
-        }
-        throw new Error(`Unsupported primitive serializer: ${type.primitive}`);
-      }
-      case "optional":
-        return `@client.optional_serializer(${this.getSerializerExpr(type.other)})`;
-      case "array":
-        return `@client.vector_serializer(${this.getSerializerExpr(type.item)})`;
-      case "record": {
-        const recordLocation = this.typeSpeller.recordMap.get(type.key)!;
-        const recordTypeName = getTypeName(recordLocation);
-        if (recordLocation.modulePath === this.inModule.path) {
-          return `${recordTypeName}::serializer()`;
-        }
-        return `@${modulePathToAlias(recordLocation.modulePath)}.${recordTypeName}::serializer()`;
-      }
-    }
-  }
-
   private getStructAddFieldLines(
     typeName: string,
     adapterVarName: string,
@@ -725,10 +687,10 @@ class MoonbitSourceFileGenerator {
 
     const serializerExpr =
       field.isRecursive === "hard"
-        ? `@client.recursive_serializer(${this.getSerializerExpr(resolvedType)})`
+        ? `@client.recursive_serializer(${this.typeSpeller.getMoonbitSerializerExpr(resolvedType)})`
         : isKeyedArrayField
-          ? `@client.keyed_vector_serializer(${this.getSerializerExpr(resolvedType.item)}, ${this.toMoonbitStringLiteral(resolvedType.key!.path.map((part) => part.name.text).join("."))})`
-          : this.getSerializerExpr(resolvedType);
+          ? `@client.keyed_vector_serializer(${this.typeSpeller.getMoonbitSerializerExpr(resolvedType.item)}, ${this.toMoonbitStringLiteral(resolvedType.key!.path.map((part) => part.name.text).join("."))})`
+          : this.typeSpeller.getMoonbitSerializerExpr(resolvedType);
 
     const normalFieldType = this.typeSpeller.getMoonbitFieldType(field);
     let setterValueType = normalFieldType;
