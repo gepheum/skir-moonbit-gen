@@ -767,8 +767,10 @@ export const GENERATOR = new MoonbitCodeGenerator();
 function generateMoonPkg(module: Module): string {
   const imports: string[] = [];
   imports.push(`  "${CLIENT_PACKAGE_PATH}" @client,`);
-  imports.push(`  "moonbitlang/core/builtin" @builtin,`);
-  imports.push(`  "moonbitlang/core/debug" @debug,`);
+  if (module.records.length > 0) {
+    imports.push(`  "moonbitlang/core/builtin" @builtin,`);
+    imports.push(`  "moonbitlang/core/debug" @debug,`);
+  }
 
   for (const importedPath of Object.keys(module.pathToImportedNames)) {
     const alias = modulePathToAlias(importedPath);
