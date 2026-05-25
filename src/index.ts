@@ -1,5 +1,4 @@
-// TODO: generate doc for client...
-// TODO: add unit tests
+// TODO: prevent user from calling Unknown(...)
 
 import {
   convertCase,
@@ -109,6 +108,7 @@ class MoonbitSourceFileGenerator {
     const recordType = record.record.recordType;
     const typeName = getTypeName(record);
 
+    out.push(commentify(docToCommentText(record.record.doc)));
     out.push(`// ${recordType} ${typeName}\n`);
     if (recordType === "struct") {
       this.writeStruct(record, out);
@@ -121,6 +121,7 @@ class MoonbitSourceFileGenerator {
     if (!constant.type || constant.valueAsDenseJson === undefined) {
       return;
     }
+    out.push(commentify(docToCommentText(constant.doc)));
     const moonbitName = `${convertCase(constant.name.text, "lower_underscore")}_const`;
     const moonbitType = this.typeSpeller.getMoonbitType(constant.type);
     const serializerExpr = this.typeSpeller.getMoonbitSerializerExpr(
@@ -162,6 +163,7 @@ class MoonbitSourceFileGenerator {
 
     out.push(`pub struct ${typeName} {\n`);
     for (const field of fields) {
+      out.push(commentify(docToCommentText(field.doc), "  "));
       const fieldName = toStructFieldName(field.name.text);
       const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
       out.push(`  ${fieldName} : ${moonbitType}\n`);
@@ -391,6 +393,8 @@ class MoonbitSourceFileGenerator {
     }> = [];
     for (const variant of variants) {
       const variantName = convertCase(variant.name.text, "UpperCamel");
+      const variantDoc = commentify(docToCommentText(variant.doc), "  ");
+      out.push(variantDoc);
       variantNames.push({
         field: variant,
         hasPayload: !!variant.type,
@@ -774,7 +778,13 @@ function generateMoonPkg(module: Module): string {
   return `import {\n${imports.join("\n")}\n}\n`;
 }
 
-function commentify(textOrLines: string | readonly string[]): string {
+function commentify(
+  textOrLines: string | readonly string[],
+  indent = "",
+): string {
+  if (!/^ *$/.test(indent)) {
+    throw new Error("indent must contain only spaces");
+  }
   const text = (
     typeof textOrLines === "string" ? textOrLines : textOrLines.join("\n")
   )
@@ -785,7 +795,9 @@ function commentify(textOrLines: string | readonly string[]): string {
   }
   return text
     .split("\n")
-    .map((line) => (line.length > 0 ? `/// ${line}\n` : "///\n"))
+    .map((line) =>
+      line.length > 0 ? `${indent}/// ${line}\n` : `${indent}///\n`,
+    )
     .join("");
 }
 
