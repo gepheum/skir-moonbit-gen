@@ -76,7 +76,7 @@ export class TypeSpeller {
 
   getMoonbitFieldDefault(field: Field): string {
     if (field.isRecursive === "hard") {
-      return "@client.recursive_default()";
+      return "@client.Recursive::Default";
     }
     return this.getMoonbitDefault(this.getRequiredFieldType(field));
   }

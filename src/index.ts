@@ -1,6 +1,4 @@
 // TODO: generate doc for client...
-// TODO: rename keep_or_set_keep
-//   TODO: use pub(all)
 // TODO: add unit tests
 // TODO: make Serializer.adapter private?
 // TODO: organize client lib...
@@ -227,7 +225,7 @@ class MoonbitSourceFileGenerator {
       const fieldName = toStructFieldName(field.name.text);
       const moonbitType = this.typeSpeller.getMoonbitFieldType(field);
       out.push(
-        `  ${fieldName}~ : @client.KeepOrSet[${moonbitType}]=@client.keep_or_set_keep(),\n`,
+        `  ${fieldName}~ : @client.KeepOrSet[${moonbitType}]=@client.KeepOrSet::Keep,\n`,
       );
     }
     out.push(`) -> ${typeName} {\n`);
