@@ -958,6 +958,7 @@ pub fn timestamp_serializer() -> Serializer[Timestamp] {
 }
 
 pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
+  let other = other.adapter
   new_serializer({
     is_default: fn(input : T?) {
       match input {
@@ -968,20 +969,20 @@ pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
     to_dense_json: fn(input : T?, builder : StringBuilder) {
       match input {
         None => builder.write_string("null")
-        Some(v) => builder.write_string(other.to_dense_json(v))
+        Some(v) => (other.to_dense_json)(v, builder)
       }
     },
     to_readable_json: fn(input : T?) {
       match input {
         None => parse_json("null")
-        Some(v) => other.to_readable_json(v)
+        Some(v) => (other.to_readable_json)(v)
       }
     },
     from_json: fn(json : Json, policy : UnrecognizedValues) {
       match json {
         Json::Null => Ok(None)
         _ =>
-          match (other.adapter.from_json)(json, policy) {
+          match (other.from_json)(json, policy) {
             Ok(v) => Ok(Some(v))
             Err(e) => Err(e)
           }
@@ -990,7 +991,7 @@ pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
     encode: fn(input : T?, out : OutputStream) {
       match input {
         None => out.write_int(255)
-        Some(v) => (other.adapter.encode)(v, out)
+        Some(v) => (other.encode)(v, out)
       }
     },
     decode: fn(input : InputStream, policy : UnrecognizedValues) {
@@ -1001,7 +1002,7 @@ pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
             Err(e) => Err(e)
           }
         Ok(_) =>
-          match (other.adapter.decode)(input, policy) {
+          match (other.decode)(input, policy) {
             Ok((v, tail)) => Ok((Some(v), tail))
             Err(e) => Err(e)
           }
@@ -1009,7 +1010,7 @@ pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
       }
     },
     type_descriptor: fn() {
-      let inner = (other.adapter.type_descriptor)()
+      let inner = (other.type_descriptor)()
       {
         root_type: TypeSignature::Optional(inner.root_type),
         records: inner.records,
@@ -1019,23 +1020,24 @@ pub fn[T] optional_serializer(other : Serializer[T]) -> Serializer[T?] {
 }
 
 pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]] {
+  let other = other.adapter
   new_serializer({
     is_default: fn(input : Recursive[T]) {
       match input {
         Recursive::Default => true
-        Recursive::Some(v) => other.is_default(v)
+        Recursive::Some(v) => (other.is_default)(v)
       }
     },
     to_dense_json: fn(input : Recursive[T], builder : StringBuilder) {
       match input {
         Recursive::Default => builder.write_string("[]")
-        Recursive::Some(v) => builder.write_string(other.to_dense_json(v))
+        Recursive::Some(v) => (other.to_dense_json)(v, builder)
       }
     },
     to_readable_json: fn(input : Recursive[T]) {
       match input {
         Recursive::Default => parse_json("{}")
-        Recursive::Some(v) => other.to_readable_json(v)
+        Recursive::Some(v) => (other.to_readable_json)(v)
       }
     },
     from_json: fn(json : Json, policy : UnrecognizedValues) {
@@ -1043,7 +1045,7 @@ pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]
         Json::Array(arr) if arr.length() == 0 => Ok(Recursive::Default)
         Json::Object(obj) if obj.is_empty() => Ok(Recursive::Default)
         _ =>
-          match (other.adapter.from_json)(json, policy) {
+          match (other.from_json)(json, policy) {
             Ok(v) => Ok(Recursive::Some(v))
             Err(e) => Err(e)
           }
@@ -1052,7 +1054,7 @@ pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]
     encode: fn(input : Recursive[T], out : OutputStream) {
       match input {
         Recursive::Default => out.write_int(246)
-        Recursive::Some(v) => (other.adapter.encode)(v, out)
+        Recursive::Some(v) => (other.encode)(v, out)
       }
     },
     decode: fn(input : InputStream, policy : UnrecognizedValues) {
@@ -1063,7 +1065,7 @@ pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]
             Err(e) => Err(e)
           }
         Ok(_) =>
-          match (other.adapter.decode)(input, policy) {
+          match (other.decode)(input, policy) {
             Ok((v, tail)) => Ok((Recursive::Some(v), tail))
             Err(e) => Err(e)
           }
@@ -1071,7 +1073,7 @@ pub fn[T] recursive_serializer(other : Serializer[T]) -> Serializer[Recursive[T]
       }
     },
     type_descriptor: fn() {
-      (other.adapter.type_descriptor)()
+      (other.type_descriptor)()
     },
   })
 }
@@ -1080,6 +1082,7 @@ fn[T] vector_serializer_impl(
   item_serializer : Serializer[T],
   key_extractor : String,
 ) -> Serializer[@immut_vector.Vector[T]] {
+  let item_serializer = item_serializer.adapter
   new_serializer({
     is_default: fn(input : @immut_vector.Vector[T]) { input.is_empty() },
     to_dense_json: fn(input : @immut_vector.Vector[T], builder : StringBuilder) {
@@ -1089,7 +1092,7 @@ fn[T] vector_serializer_impl(
         if i > 0 {
           builder.write_char(',')
         }
-        builder.write_string(item_serializer.to_dense_json(item))
+        (item_serializer.to_dense_json)(item, builder)
         i = i + 1
       }
       builder.write_char(']')
@@ -1102,7 +1105,7 @@ fn[T] vector_serializer_impl(
         if i > 0 {
           builder.write_char(',')
         }
-        builder.write_string(item_serializer.to_readable_json(item).stringify())
+        builder.write_string((item_serializer.to_readable_json)(item).stringify())
         i = i + 1
       }
       builder.write_char(']')
@@ -1113,7 +1116,7 @@ fn[T] vector_serializer_impl(
         Json::Array(arr) => {
           let out : Array[T] = []
           for item in arr {
-            match (item_serializer.adapter.from_json)(item, policy) {
+            match (item_serializer.from_json)(item, policy) {
               Ok(v) => out.push(v)
               Err(e) => return Err(e)
             }
@@ -1132,7 +1135,7 @@ fn[T] vector_serializer_impl(
         cur = cur.write_ints([250, ..encode_i32(n)])
       }
       for item in input.iter() {
-        cur = (item_serializer.adapter.encode)(item, cur)
+        cur = (item_serializer.encode)(item, cur)
       }
       cur
     },
@@ -1159,7 +1162,7 @@ fn[T] vector_serializer_impl(
             }
           let out : Array[T] = []
           for _ in 0..<n {
-            match (item_serializer.adapter.decode)(cur, policy) {
+            match (item_serializer.decode)(cur, policy) {
               Ok((item, next)) => {
                 out.push(item)
                 cur = next
@@ -1173,7 +1176,7 @@ fn[T] vector_serializer_impl(
       }
     },
     type_descriptor: fn() {
-      let item_td = (item_serializer.adapter.type_descriptor)()
+      let item_td = (item_serializer.type_descriptor)()
       {
         root_type: TypeSignature::Array({
           item_type: item_td.root_type,

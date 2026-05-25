@@ -7,7 +7,8 @@ priv enum EnumAnyEntry {
 priv struct EnumVariantEntry[T] {
   constant : () -> T?
   wrapper_default : () -> T
-  variant_to_json : (T, StringBuilder, Bool, String) -> Unit
+  variant_to_dense_json : (T, StringBuilder) -> Unit
+  variant_to_readable_json : (T) -> Json
   encode_value : (T, OutputStream) -> OutputStream
   wrap_from_json : (Json, UnrecognizedValues) -> Result[T, String]
   wrap_decode : (InputStream, UnrecognizedValues) -> Result[(T, InputStream), String]
@@ -88,12 +89,11 @@ pub fn[T] EnumAdapter::add_constant_variant(
   let entry : EnumVariantEntry[T] = {
     constant: fn() { Some(instance) },
     wrapper_default: fn() { self.default_value },
-    variant_to_json: fn(_input : T, out : StringBuilder, readable : Bool, _indent : String) {
-      if readable {
-        enum_append_json_string(out, name)
-      } else {
-        out.write_string(number.to_string())
-      }
+    variant_to_dense_json: fn(_input : T, out : StringBuilder) {
+      out.write_string(number.to_string())
+    },
+    variant_to_readable_json: fn(_input : T) {
+      Json::string(number.to_string())
     },
     encode_value: fn(_input : T, out0 : OutputStream) {
       let out = out0
@@ -118,39 +118,33 @@ pub fn[T, V] EnumAdapter::add_wrapper_variant(
   wrap : (V) -> T,
   get_value : (T) -> V,
 ) -> Unit {
+  let serializer = serializer.adapter
   self.number_to_entry.set(number, EnumAnyEntry::Wrapper(kind_ordinal))
   self.name_to_kind_ordinal.set(name, kind_ordinal)
-  let variant_td = serializer.type_descriptor()
+  let variant_td = (serializer.type_descriptor)()
 
   let entry : EnumVariantEntry[T] = {
     constant: fn() { None },
     wrapper_default: fn() {
-      match serializer.from_json("0", UnrecognizedValues::Drop) {
+      match (serializer.from_json)("0", UnrecognizedValues::Drop) {
         Ok(v) => wrap(v)
         Err(_) => self.default_value
       }
     },
-    variant_to_json: fn(input : T, out : StringBuilder, readable : Bool, indent : String) {
+    variant_to_dense_json: fn(input : T, out : StringBuilder) {
       let value = get_value(input)
-      if readable {
-        let child = indent + "  "
-        out.write_char('{')
-        out.write_string(child)
-        out.write_string("\"kind\": ")
-        enum_append_json_string(out, name)
-        out.write_char(',')
-        out.write_string(child)
-        out.write_string("\"value\": ")
-        out.write_string(serializer.to_readable_json(value).stringify())
-        out.write_string(indent)
-        out.write_char('}')
-      } else {
-        out.write_char('[')
-        out.write_string(number.to_string())
-        out.write_char(',')
-        out.write_string(serializer.to_dense_json(value))
-        out.write_char(']')
-      }
+      out.write_char('[')
+      out.write_string(number.to_string())
+      out.write_char(',')
+      (serializer.to_dense_json)(value, out)
+      out.write_char(']')
+    },
+    variant_to_readable_json: fn(input : T) {
+      let value = get_value(input)
+      Json::object(Map([
+        ("kind", Json::string(name)),
+        ("value", (serializer.to_readable_json)(value)),
+      ]))
     },
     encode_value: fn(input : T, out0 : OutputStream) {
       let mut out = out0
@@ -160,16 +154,16 @@ pub fn[T, V] EnumAdapter::add_wrapper_variant(
         out = out.write_int(248)
         out = out.write_ints(encode_i32(number))
       }
-      (serializer.adapter.encode)(get_value(input), out)
+      (serializer.encode)(get_value(input), out)
     },
     wrap_from_json: fn(json : Json, policy : UnrecognizedValues) {
-      match serializer.from_json(json.stringify(), policy) {
+      match (serializer.from_json)(json, policy) {
         Ok(v) => Ok(wrap(v))
         Err(e) => Err(e)
       }
     },
     wrap_decode: fn(input : InputStream, policy : UnrecognizedValues) {
-      match (serializer.adapter.decode)(input, policy) {
+      match (serializer.decode)(input, policy) {
         Ok((v, tail)) => Ok((wrap(v), tail))
         Err(e) => Err(e)
       }
@@ -268,23 +262,6 @@ fn enum_append_unique_records(target : Array[RecordDescriptor], source : Array[R
   }
 }
 
-fn enum_append_json_string(builder : StringBuilder, s : String) -> Unit {
-  builder.write_char('"')
-  for ch in s.iter() {
-    match ch {
-      '"' => builder.write_string("\\\"")
-      '\\' => builder.write_string("\\\\")
-      '\b' => builder.write_string("\\b")
-      '\f' => builder.write_string("\\f")
-      '\n' => builder.write_string("\\n")
-      '\r' => builder.write_string("\\r")
-      '\t' => builder.write_string("\\t")
-      _ => builder.write_char(ch)
-    }
-  }
-  builder.write_char('"')
-}
-
 pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
   new_serializer({
     is_default: fn(input : T) { (self.get_kind_ordinal)(input) == 0 },
@@ -314,22 +291,20 @@ pub fn[T] EnumAdapter::serializer(self : EnumAdapter[T]) -> Serializer[T] {
       }
 
       match self.entry_at_kind(ko) {
-        Some(e) => (e.variant_to_json)(input, out, false, "")
+        Some(e) => (e.variant_to_dense_json)(input, out)
         None => out.write_char('0')
       }
     },
     to_readable_json: fn(input : T) {
       let ko = (self.get_kind_ordinal)(input)
-      let builder = StringBuilder::new()
       if ko == 0 {
-        enum_append_json_string(builder, "unknown")
+        Json::string("unknown")
       } else {
         match self.entry_at_kind(ko) {
-          Some(e) => (e.variant_to_json)(input, builder, true, "")
-          None => enum_append_json_string(builder, "unknown")
+          Some(e) => (e.variant_to_readable_json)(input)
+          None => Json::string("unknown")
         }
       }
-      parse_json(builder.to_string())
     },
     from_json: fn(json : Json, policy : UnrecognizedValues) {
       let keep = enum_is_keep(policy)

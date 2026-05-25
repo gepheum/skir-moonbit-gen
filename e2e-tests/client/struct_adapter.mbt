@@ -5,7 +5,8 @@ priv struct StructFieldEntry[T] {
   field_type : TypeSignature
   field_records : Array[RecordDescriptor]
   is_field_default : (T) -> Bool
-  field_to_json : (T, StringBuilder, Bool, String) -> Unit
+  field_to_dense_json : (T, StringBuilder) -> Unit
+  field_to_readable_json : (T) -> Json
   field_from_json : (T, Json, UnrecognizedValues) -> Result[Unit, String]
   encode_field : (T, OutputStream) -> OutputStream
   decode_field : (T, InputStream, UnrecognizedValues) -> Result[InputStream, String]
@@ -55,24 +56,19 @@ pub fn[T, V] StructAdapter::add_field(
   setter : (T, V) -> Unit,
   doc : String,
 ) -> Unit {
-  let field_td = serializer.type_descriptor()
+  let serializer = serializer.adapter
+  let field_td = (serializer.type_descriptor)()
   let entry : StructFieldEntry[T] = {
     number,
     name,
     doc,
     field_type: field_td.root_type,
     field_records: field_td.records,
-    is_field_default: fn(input : T) { serializer.is_default(getter(input)) },
-    field_to_json: fn(input : T, out : StringBuilder, readable : Bool, _indent : String) {
-      let value = getter(input)
-      if readable {
-        out.write_string(serializer.to_readable_json(value).stringify())
-      } else {
-        out.write_string(serializer.to_dense_json(value))
-      }
-    },
+    is_field_default: fn(input : T) { (serializer.is_default)(getter(input)) },
+    field_to_dense_json: fn(input : T, out : StringBuilder) { (serializer.to_dense_json)(getter(input), out) },
+    field_to_readable_json: fn(input : T) -> Json { (serializer.to_readable_json)(getter(input)) },
     field_from_json: fn(input : T, json : Json, policy : UnrecognizedValues) {
-      match serializer.from_json(json.stringify(), policy) {
+      match (serializer.from_json)(json, policy) {
         Ok(v) => {
           setter(input, v)
           Ok(())
@@ -80,9 +76,9 @@ pub fn[T, V] StructAdapter::add_field(
         Err(e) => Err(e)
       }
     },
-    encode_field: fn(input : T, out : OutputStream) { (serializer.adapter.encode)(getter(input), out) },
+    encode_field: fn(input : T, out : OutputStream) { (serializer.encode)(getter(input), out) },
     decode_field: fn(input : T, in0 : InputStream, policy : UnrecognizedValues) {
-      match (serializer.adapter.decode)(in0, policy) {
+      match (serializer.decode)(in0, policy) {
         Ok((v, tail)) => {
           setter(input, v)
           Ok(tail)
@@ -157,7 +153,7 @@ fn[T] StructAdapter::to_dense_json_impl(self : StructAdapter[T], input : T, out 
       out.write_char(',')
     }
     match self.slot_to_index[i] {
-      Some(idx) => (self.ordered_entries[idx].field_to_json)(input, out, false, "")
+      Some(idx) => (self.ordered_entries[idx].field_to_dense_json)(input, out)
       None => out.write_char('0')
     }
   }
@@ -169,34 +165,6 @@ fn[T] StructAdapter::to_dense_json_impl(self : StructAdapter[T], input : T, out 
     out.write_string(extra_json)
   }
   out.write_char(']')
-}
-
-fn[T] StructAdapter::to_readable_json_impl(
-  self : StructAdapter[T],
-  input : T,
-  indent : String,
-  out : StringBuilder,
-) -> Unit {
-  out.write_char('{')
-  let child_indent = indent + "  "
-  let mut first = true
-  for e in self.ordered_entries {
-    if (e.is_field_default)(input) {
-      continue
-    }
-    if !first {
-      out.write_char(',')
-    }
-    first = false
-    out.write_string(child_indent)
-      struct_append_json_string(out, e.name)
-    out.write_string(": ")
-    (e.field_to_json)(input, out, true, child_indent)
-  }
-  if !first {
-    out.write_string(indent)
-  }
-  out.write_char('}')
 }
 
 fn[T] StructAdapter::from_dense_json_impl(
@@ -274,23 +242,6 @@ fn struct_int_array_to_bytes(bytes : Array[Int]) -> Bytes {
     out.push(b.to_byte())
   }
   Bytes::from_array(out)
-}
-
-fn struct_append_json_string(builder : StringBuilder, s : String) -> Unit {
-  builder.write_char('"')
-  for ch in s.iter() {
-    match ch {
-      '"' => builder.write_string("\\\"")
-      '\\' => builder.write_string("\\\\")
-      '\b' => builder.write_string("\\b")
-      '\f' => builder.write_string("\\f")
-      '\n' => builder.write_string("\\n")
-      '\r' => builder.write_string("\\r")
-      '\t' => builder.write_string("\\t")
-      _ => builder.write_char(ch)
-    }
-  }
-  builder.write_char('"')
 }
 
 fn struct_record_id(record : RecordDescriptor) -> String {
@@ -409,9 +360,14 @@ pub fn[T] StructAdapter::serializer(self : StructAdapter[T]) -> Serializer[T] {
       self.to_dense_json_impl(input, out)
     },
     to_readable_json: fn(input : T) {
-      let builder = StringBuilder::new()
-      self.to_readable_json_impl(input, "", builder)
-      parse_json(builder.to_string())
+      let entries: Array[(String, Json)] = []
+      for e in self.ordered_entries {
+        if (e.is_field_default)(input) {
+          continue
+        }
+        entries.push((e.name, (e.field_to_readable_json)(input)))
+      }
+      Json::object(Map(entries))
     },
     from_json: fn(json : Json, policy : UnrecognizedValues) {
       match json {

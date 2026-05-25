@@ -22,7 +22,7 @@ struct TypeAdapter[T] {
 }
 
 pub struct Serializer[T] {
-  adapter : TypeAdapter[T]
+  priv adapter : TypeAdapter[T]
 }
 
 fn[T] new_serializer(adapter : TypeAdapter[T]) -> Serializer[T] {
@@ -38,10 +38,6 @@ pub fn[T] Serializer::to_dense_json(self : Serializer[T], input : T) -> String {
 
 pub fn[T] Serializer::to_readable_json(self : Serializer[T], input : T) -> Json {
   (self.adapter.to_readable_json)(input)
-}
-
-pub fn[T] Serializer::is_default(self : Serializer[T], input : T) -> Bool {
-  (self.adapter.is_default)(input)
 }
 
 pub fn[T] Serializer::from_json(

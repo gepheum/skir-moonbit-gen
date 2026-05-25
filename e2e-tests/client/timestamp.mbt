@@ -1,3 +1,4 @@
+/// Represents a point in time.
 pub struct Timestamp {
   priv unix_millis : Int64
 }
@@ -19,34 +20,42 @@ fn clamp_timestamp_millis(ms : Int64) -> Int64 {
   }
 }
 
+/// Creates a Timestamp from Unix milliseconds.
 pub fn Timestamp::from_unix_millis(ms : Int64) -> Timestamp {
   { unix_millis: clamp_timestamp_millis(ms) }
 }
 
+/// Creates a Timestamp from Unix seconds.
 pub fn Timestamp::from_unix_seconds(seconds : Double) -> Timestamp {
   Timestamp::from_unix_millis((seconds * 1000.0).round().to_int64())
 }
 
+/// Returns the current Timestamp.
 pub fn Timestamp::now() -> Timestamp {
   Timestamp::from_unix_millis(@env.now().reinterpret_as_int64())
 }
 
+/// Returns the Unix epoch Timestamp.
 pub fn Timestamp::unix_epoch() -> Timestamp {
   timestamp_unix_epoch
 }
 
+/// Returns the minimum representable Timestamp.
 pub fn Timestamp::min() -> Timestamp {
   timestamp_min
 }
 
+/// Returns the maximum representable Timestamp.
 pub fn Timestamp::max() -> Timestamp {
   timestamp_max
 }
 
+/// Returns the Unix milliseconds representation.
 pub fn Timestamp::unix_millis(self : Timestamp) -> Int64 {
   self.unix_millis
 }
 
+/// Returns the Unix seconds representation.
 pub fn Timestamp::unix_seconds(self : Timestamp) -> Double {
   self.unix_millis.to_double() / 1000.0
 }
@@ -82,6 +91,7 @@ fn zero_pad(n : Int, width : Int) -> String {
   }
 }
 
+/// Formats the Timestamp as ISO8601 string.
 pub fn Timestamp::to_iso8601(self : Timestamp) -> String {
   let ms = clamp_timestamp_millis(self.unix_millis)
   let millis_part = int64_rem_euclid(ms, 1000L).to_int()
