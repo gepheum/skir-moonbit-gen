@@ -1299,11 +1299,11 @@ fn[T : Eq] assert_eq(lhs : T, rhs : T) -> Unit {
 }
 
 test "to_json_dense_true" {
-  assert_eq(bool_serializer().to_dense_json(true), "1")
+  assert_eq(bool_serializer().to_dense_json_code(true), "1")
 }
 
 test "to_json_dense_false" {
-  assert_eq(bool_serializer().to_dense_json(false), "0")
+  assert_eq(bool_serializer().to_dense_json_code(false), "0")
 }
 
 test "to_json_readable_true" {
@@ -1316,52 +1316,52 @@ test "to_json_readable_false" {
 
 test "from_json_bool_literal" {
   let s = bool_serializer()
-  assert_eq(expect_ok_bool(s.from_json("true")), true)
-  assert_eq(expect_ok_bool(s.from_json("false")), false)
+  assert_eq(expect_ok_bool(s.from_json(parse_json("true"))), true)
+  assert_eq(expect_ok_bool(s.from_json(parse_json("false"))), false)
 }
 
 test "from_json_number_1_and_0" {
   let s = bool_serializer()
-  assert_eq(expect_ok_bool(s.from_json("1")), true)
-  assert_eq(expect_ok_bool(s.from_json("0")), false)
-  assert_eq(expect_ok_bool(s.from_json("1", unrecognized_values=UnrecognizedValues::Keep)), true)
+  assert_eq(expect_ok_bool(s.from_json(parse_json("1"))), true)
+  assert_eq(expect_ok_bool(s.from_json(parse_json("0"))), false)
+  assert_eq(expect_ok_bool(s.from_json(parse_json("1"), unrecognized_values=UnrecognizedValues::Keep)), true)
 }
 
 test "from_json_number_nonzero" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("42")),
+    expect_ok_bool(bool_serializer().from_json(parse_json("42"))),
     true,
   )
 }
 
 test "from_json_float_zero" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("0.0")),
+    expect_ok_bool(bool_serializer().from_json(parse_json("0.0"))),
     false,
   )
 }
 
 test "from_json_string_zero_is_false" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("\"0\"")),
+    expect_ok_bool(bool_serializer().from_json(parse_json("\"0\""))),
     false,
   )
 }
 
 test "from_json_string_nonzero_is_true" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("\"1\"")),
+    expect_ok_bool(bool_serializer().from_json(parse_json("\"1\""))),
     true,
   )
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("\"true\"")),
+    expect_ok_bool(bool_serializer().from_json(parse_json("\"true\""))),
     true,
   )
 }
 
 test "from_json_null_is_false" {
   assert_eq(
-    expect_ok_bool(bool_serializer().from_json("null")),
+    expect_ok_bool(bool_serializer().from_json(parse_json("null"))),
     false,
   )
 }
@@ -1401,12 +1401,12 @@ test "type_descriptor_is_bool" {
 }
 
 test "int32_to_json_positive" {
-  assert_eq(int32_serializer().to_dense_json(42), "42")
+  assert_eq(int32_serializer().to_dense_json_code(42), "42")
 }
 
 test "int32_from_json_float_truncates" {
-  assert_eq(expect_ok_int(int32_serializer().from_json("3.9")), 3)
-  assert_eq(expect_ok_int(int32_serializer().from_json("-1.5")), -1)
+  assert_eq(expect_ok_int(int32_serializer().from_json(parse_json("3.9"))), 3)
+  assert_eq(expect_ok_int(int32_serializer().from_json(parse_json("-1.5"))), -1)
 }
 
 test "int32_binary_round_trip" {
@@ -1418,14 +1418,14 @@ test "int32_binary_round_trip" {
 
 test "int64_to_json_large_value_is_quoted" {
   assert_eq(
-    int64_serializer().to_dense_json(9007199254740992L),
+    int64_serializer().to_dense_json_code(9007199254740992L),
     "\"9007199254740992\"",
   )
 }
 
 test "int64_from_json_quoted_large" {
   assert_eq(
-    expect_ok_int64(int64_serializer().from_json("\"9007199254740992\"")),
+    expect_ok_int64(int64_serializer().from_json(parse_json("\"9007199254740992\""))),
     9007199254740992L,
   )
 }
@@ -1450,14 +1450,14 @@ test "int64_binary_round_trip" {
 
 test "hash64_to_json_large_value_is_quoted" {
   assert_eq(
-    hash64_serializer().to_dense_json(9007199254740992UL),
+    hash64_serializer().to_dense_json_code(9007199254740992UL),
     "\"9007199254740992\"",
   )
 }
 
 test "hash64_from_json_negative_number_is_zero" {
   assert_eq(
-    expect_ok_uint64(hash64_serializer().from_json("-1.0")),
+    expect_ok_uint64(hash64_serializer().from_json(parse_json("-1.0"))),
     0UL,
   )
 }
@@ -1470,12 +1470,12 @@ test "hash64_binary_round_trip" {
 }
 
 test "float32_to_json" {
-  assert_eq(float32_serializer().to_dense_json(Float::from_double(1.5)), "1.5")
+  assert_eq(float32_serializer().to_dense_json_code(Float::from_double(1.5)), "1.5")
 }
 
 test "float32_from_json_string" {
   assert_eq(
-    expect_ok_float(float32_serializer().from_json("\"3.25\"")),
+    expect_ok_float(float32_serializer().from_json(parse_json("\"3.25\""))),
     Float::from_double(3.25),
   )
 }
@@ -1495,12 +1495,12 @@ test "float32_binary_encoding_1_5" {
 }
 
 test "float64_to_json" {
-  assert_eq(float64_serializer().to_dense_json(1.5), "1.5")
+  assert_eq(float64_serializer().to_dense_json_code(1.5), "1.5")
 }
 
 test "float64_from_json_string" {
   assert_eq(
-    expect_ok_double(float64_serializer().from_json("\"3.25\"")),
+    expect_ok_double(float64_serializer().from_json(parse_json("\"3.25\""))),
     3.25,
   )
 }
@@ -1521,7 +1521,7 @@ test "float64_binary_encoding_1_5" {
 
 test "timestamp_to_json_dense_epoch" {
   let epoch = Timestamp::from_unix_millis(0L)
-  assert_eq(timestamp_serializer().to_dense_json(epoch), "0")
+  assert_eq(timestamp_serializer().to_dense_json_code(epoch), "0")
 }
 
 test "timestamp_to_json_readable" {
@@ -1535,7 +1535,7 @@ test "timestamp_to_json_readable" {
 }
 
 test "timestamp_from_json_object_readable" {
-  let json = "{\"unix_millis\":1234567890000,\"formatted\":\"ignored\"}"
+  let json = parse_json("{\"unix_millis\":1234567890000,\"formatted\":\"ignored\"}")
   let parsed = expect_ok_timestamp(timestamp_serializer().from_json(json))
   assert_eq(parsed.unix_millis(), 1234567890000L)
 }
@@ -1564,13 +1564,13 @@ test "timestamp_comparison_operators" {
 
 test "array_to_json_dense_nonempty" {
   let s = vector_serializer(int32_serializer())
-  assert_eq(s.to_dense_json(immut_from_array([1, 2, 3])), "[1,2,3]")
+  assert_eq(s.to_dense_json_code(immut_from_array([1, 2, 3])), "[1,2,3]")
 }
 
 test "array_from_json_null_is_empty" {
   let s = vector_serializer(int32_serializer())
   assert_eq(
-    expect_ok_immut_int_array(s.from_json("null")),
+    expect_ok_immut_int_array(s.from_json(parse_json("null"))),
     @immut_vector.Vector::new(),
   )
 }
@@ -1596,17 +1596,17 @@ test "array_binary_round_trip" {
 }
 
 test "optional_to_json_none_is_null" {
-  assert_eq(optional_serializer(int32_serializer()).to_dense_json(None), "null")
+  assert_eq(optional_serializer(int32_serializer()).to_dense_json_code(None), "null")
 }
 
 test "optional_to_json_some_delegates" {
-  assert_eq(optional_serializer(int32_serializer()).to_dense_json(Some(42)), "42")
+  assert_eq(optional_serializer(int32_serializer()).to_dense_json_code(Some(42)), "42")
 }
 
 test "optional_from_json_value_is_some" {
   assert_eq(
     expect_ok_optional_int(
-      optional_serializer(int32_serializer()).from_json("7"),
+      optional_serializer(int32_serializer()).from_json(parse_json("7")),
     ),
     Some(7),
   )
@@ -1627,7 +1627,7 @@ test "optional_binary_round_trip" {
 }
 
 test "recursive_to_json_dense_default_is_empty_array" {
-  assert_eq(recursive_serializer(int32_serializer()).to_dense_json(Recursive::Default), "[]")
+  assert_eq(recursive_serializer(int32_serializer()).to_dense_json_code(Recursive::Default), "[]")
 }
 
 test "recursive_to_json_readable_default_is_empty_object" {
@@ -1640,7 +1640,7 @@ test "recursive_to_json_readable_default_is_empty_object" {
 test "recursive_from_json_empty_array_is_default" {
   assert_recursive_int_eq(
     expect_ok_recursive_int(
-      recursive_serializer(int32_serializer()).from_json("[]"),
+      recursive_serializer(int32_serializer()).from_json(parse_json("[]")),
     ),
     Recursive::Default,
   )
@@ -1649,7 +1649,7 @@ test "recursive_from_json_empty_array_is_default" {
 test "recursive_from_json_empty_object_is_default" {
   assert_recursive_int_eq(
     expect_ok_recursive_int(
-      recursive_serializer(int32_serializer()).from_json("{}"),
+      recursive_serializer(int32_serializer()).from_json(parse_json("{}")),
     ),
     Recursive::Default,
   )

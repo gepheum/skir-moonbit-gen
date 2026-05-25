@@ -144,6 +144,8 @@ struct True {
   field: bool;
   by: bool;
   it: [Floats|x];
+  set: bool;
+  keep: bool;
 }
 
 struct String {

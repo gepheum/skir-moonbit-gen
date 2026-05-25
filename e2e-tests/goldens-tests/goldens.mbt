@@ -89,11 +89,11 @@ fn bytes_matches_candidates(actual : Array[Int], expected : @client.ImmutVector[
   false
 }
 
-fn policy(keep_unrecognized : Bool) -> @client.Bool {
+fn policy(keep_unrecognized : Bool) -> @client.UnrecognizedValues {
   if keep_unrecognized {
-    true
+    @client.UnrecognizedValues::Keep
   } else {
-    false
+    @client.UnrecognizedValues::Drop
   }
 }
 
@@ -128,25 +128,25 @@ fn evaluate_bytes_expression(expr : @goldens.BytesExpression) -> Result[Array[In
 
 fn evaluated_to_dense_json(value : Evaluated) -> String {
   match value {
-    Evaluated::Bool(v) => @client.bool_serializer().to_dense_json(v)
-    Evaluated::Int32(v) => @client.int32_serializer().to_dense_json(v)
-    Evaluated::Int64(v) => @client.int64_serializer().to_dense_json(v)
-    Evaluated::Hash64(v) => @client.hash64_serializer().to_dense_json(v)
-    Evaluated::Float32(v) => @client.float32_serializer().to_dense_json(v)
-    Evaluated::Float64(v) => @client.float64_serializer().to_dense_json(v)
-    Evaluated::Timestamp(v) => @client.timestamp_serializer().to_dense_json(v)
-    Evaluated::String(v) => @client.string_serializer().to_dense_json(v)
-    Evaluated::Bytes(v) => @client.bytes_serializer().to_dense_json(v)
-    Evaluated::BoolOptional(v) => @client.optional_serializer(@client.bool_serializer()).to_dense_json(v)
-    Evaluated::Ints(v) => @client.vector_serializer(@client.int32_serializer()).to_dense_json(v)
-    Evaluated::Point(v) => @goldens.Point::serializer().to_dense_json(v)
-    Evaluated::Color(v) => @goldens.Color::serializer().to_dense_json(v)
-    Evaluated::MyEnum(v) => @goldens.MyEnum::serializer().to_dense_json(v)
-    Evaluated::EnumA(v) => @goldens.EnumA::serializer().to_dense_json(v)
-    Evaluated::EnumB(v) => @goldens.EnumB::serializer().to_dense_json(v)
-    Evaluated::KeyedArrays(v) => @goldens.KeyedArrays::serializer().to_dense_json(v)
-    Evaluated::RecStruct(v) => @goldens.RecStruct::serializer().to_dense_json(v)
-    Evaluated::RecEnum(v) => @goldens.RecEnum::serializer().to_dense_json(v)
+    Evaluated::Bool(v) => @client.bool_serializer().to_dense_json_code(v)
+    Evaluated::Int32(v) => @client.int32_serializer().to_dense_json_code(v)
+    Evaluated::Int64(v) => @client.int64_serializer().to_dense_json_code(v)
+    Evaluated::Hash64(v) => @client.hash64_serializer().to_dense_json_code(v)
+    Evaluated::Float32(v) => @client.float32_serializer().to_dense_json_code(v)
+    Evaluated::Float64(v) => @client.float64_serializer().to_dense_json_code(v)
+    Evaluated::Timestamp(v) => @client.timestamp_serializer().to_dense_json_code(v)
+    Evaluated::String(v) => @client.string_serializer().to_dense_json_code(v)
+    Evaluated::Bytes(v) => @client.bytes_serializer().to_dense_json_code(v)
+    Evaluated::BoolOptional(v) => @client.optional_serializer(@client.bool_serializer()).to_dense_json_code(v)
+    Evaluated::Ints(v) => @client.vector_serializer(@client.int32_serializer()).to_dense_json_code(v)
+    Evaluated::Point(v) => @goldens.Point::serializer().to_dense_json_code(v)
+    Evaluated::Color(v) => @goldens.Color::serializer().to_dense_json_code(v)
+    Evaluated::MyEnum(v) => @goldens.MyEnum::serializer().to_dense_json_code(v)
+    Evaluated::EnumA(v) => @goldens.EnumA::serializer().to_dense_json_code(v)
+    Evaluated::EnumB(v) => @goldens.EnumB::serializer().to_dense_json_code(v)
+    Evaluated::KeyedArrays(v) => @goldens.KeyedArrays::serializer().to_dense_json_code(v)
+    Evaluated::RecStruct(v) => @goldens.RecStruct::serializer().to_dense_json_code(v)
+    Evaluated::RecEnum(v) => @goldens.RecEnum::serializer().to_dense_json_code(v)
   }
 }
 
@@ -225,25 +225,25 @@ fn evaluated_to_type_descriptor_json(value : Evaluated) -> String {
 fn evaluated_from_json(value : Evaluated, json : String, keep_unrecognized : Bool) -> Result[Evaluated, String] {
   let p = policy(keep_unrecognized)
   match value {
-    Evaluated::Bool(_) => @client.bool_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Bool(v) })
-    Evaluated::Int32(_) => @client.int32_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Int32(v) })
-    Evaluated::Int64(_) => @client.int64_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Int64(v) })
-    Evaluated::Hash64(_) => @client.hash64_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Hash64(v) })
-    Evaluated::Float32(_) => @client.float32_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Float32(v) })
-    Evaluated::Float64(_) => @client.float64_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Float64(v) })
-    Evaluated::Timestamp(_) => @client.timestamp_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Timestamp(v) })
-    Evaluated::String(_) => @client.string_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::String(v) })
-    Evaluated::Bytes(_) => @client.bytes_serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Bytes(v) })
-    Evaluated::BoolOptional(_) => @client.optional_serializer(@client.bool_serializer()).from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::BoolOptional(v) })
-    Evaluated::Ints(_) => @client.vector_serializer(@client.int32_serializer()).from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Ints(v) })
-    Evaluated::Point(_) => @goldens.Point::serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Point(v) })
-    Evaluated::Color(_) => @goldens.Color::serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::Color(v) })
-    Evaluated::MyEnum(_) => @goldens.MyEnum::serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::MyEnum(v) })
-    Evaluated::EnumA(_) => @goldens.EnumA::serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::EnumA(v) })
-    Evaluated::EnumB(_) => @goldens.EnumB::serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::EnumB(v) })
-    Evaluated::KeyedArrays(_) => @goldens.KeyedArrays::serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::KeyedArrays(v) })
-    Evaluated::RecStruct(_) => @goldens.RecStruct::serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::RecStruct(v) })
-    Evaluated::RecEnum(_) => @goldens.RecEnum::serializer().from_json(json, unrecognized_values=p).map(fn(v) { Evaluated::RecEnum(v) })
+    Evaluated::Bool(_) => @client.bool_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Bool(v) })
+    Evaluated::Int32(_) => @client.int32_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Int32(v) })
+    Evaluated::Int64(_) => @client.int64_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Int64(v) })
+    Evaluated::Hash64(_) => @client.hash64_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Hash64(v) })
+    Evaluated::Float32(_) => @client.float32_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Float32(v) })
+    Evaluated::Float64(_) => @client.float64_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Float64(v) })
+    Evaluated::Timestamp(_) => @client.timestamp_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Timestamp(v) })
+    Evaluated::String(_) => @client.string_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::String(v) })
+    Evaluated::Bytes(_) => @client.bytes_serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Bytes(v) })
+    Evaluated::BoolOptional(_) => @client.optional_serializer(@client.bool_serializer()).from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::BoolOptional(v) })
+    Evaluated::Ints(_) => @client.vector_serializer(@client.int32_serializer()).from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Ints(v) })
+    Evaluated::Point(_) => @goldens.Point::serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Point(v) })
+    Evaluated::Color(_) => @goldens.Color::serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::Color(v) })
+    Evaluated::MyEnum(_) => @goldens.MyEnum::serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::MyEnum(v) })
+    Evaluated::EnumA(_) => @goldens.EnumA::serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::EnumA(v) })
+    Evaluated::EnumB(_) => @goldens.EnumB::serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::EnumB(v) })
+    Evaluated::KeyedArrays(_) => @goldens.KeyedArrays::serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::KeyedArrays(v) })
+    Evaluated::RecStruct(_) => @goldens.RecStruct::serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::RecStruct(v) })
+    Evaluated::RecEnum(_) => @goldens.RecEnum::serializer().from_json_code(json, unrecognized_values=p).map(fn(v) { Evaluated::RecEnum(v) })
   }
 }
 
@@ -311,12 +311,12 @@ fn evaluate_typed_value(input : @goldens.TypedValue) -> Result[Evaluated, String
       }
     @goldens.TypedValue::PointFromJsonKeepUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.Point::serializer().from_json(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::Point(value) })
+        Ok(code) => @goldens.Point::serializer().from_json_code(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::Point(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::PointFromJsonDropUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.Point::serializer().from_json(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::Point(value) })
+        Ok(code) => @goldens.Point::serializer().from_json_code(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::Point(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::PointFromBytesKeepUnrecognized(v) =>
@@ -331,12 +331,12 @@ fn evaluate_typed_value(input : @goldens.TypedValue) -> Result[Evaluated, String
       }
     @goldens.TypedValue::ColorFromJsonKeepUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.Color::serializer().from_json(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::Color(value) })
+        Ok(code) => @goldens.Color::serializer().from_json_code(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::Color(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::ColorFromJsonDropUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.Color::serializer().from_json(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::Color(value) })
+        Ok(code) => @goldens.Color::serializer().from_json_code(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::Color(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::ColorFromBytesKeepUnrecognized(v) =>
@@ -351,12 +351,12 @@ fn evaluate_typed_value(input : @goldens.TypedValue) -> Result[Evaluated, String
       }
     @goldens.TypedValue::MyEnumFromJsonKeepUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.MyEnum::serializer().from_json(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::MyEnum(value) })
+        Ok(code) => @goldens.MyEnum::serializer().from_json_code(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::MyEnum(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::MyEnumFromJsonDropUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.MyEnum::serializer().from_json(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::MyEnum(value) })
+        Ok(code) => @goldens.MyEnum::serializer().from_json_code(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::MyEnum(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::MyEnumFromBytesKeepUnrecognized(v) =>
@@ -371,12 +371,12 @@ fn evaluate_typed_value(input : @goldens.TypedValue) -> Result[Evaluated, String
       }
     @goldens.TypedValue::EnumAFromJsonKeepUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.EnumA::serializer().from_json(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::EnumA(value) })
+        Ok(code) => @goldens.EnumA::serializer().from_json_code(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::EnumA(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::EnumAFromJsonDropUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.EnumA::serializer().from_json(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::EnumA(value) })
+        Ok(code) => @goldens.EnumA::serializer().from_json_code(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::EnumA(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::EnumAFromBytesKeepUnrecognized(v) =>
@@ -391,12 +391,12 @@ fn evaluate_typed_value(input : @goldens.TypedValue) -> Result[Evaluated, String
       }
     @goldens.TypedValue::EnumBFromJsonKeepUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.EnumB::serializer().from_json(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::EnumB(value) })
+        Ok(code) => @goldens.EnumB::serializer().from_json_code(code, unrecognized_values=policy(true)).map(fn(value) { Evaluated::EnumB(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::EnumBFromJsonDropUnrecognized(v) =>
       match evaluate_string_expression(v) {
-        Ok(code) => @goldens.EnumB::serializer().from_json(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::EnumB(value) })
+        Ok(code) => @goldens.EnumB::serializer().from_json_code(code, unrecognized_values=policy(false)).map(fn(value) { Evaluated::EnumB(value) })
         Err(e) => Err(e)
       }
     @goldens.TypedValue::EnumBFromBytesKeepUnrecognized(v) =>
@@ -548,7 +548,7 @@ fn verify_assertion(assertion : @goldens.Assertion) -> String? {
           Ok(v) => v
           Err(_) => return Some("enum_a_from_json")
         }
-      match @goldens.EnumA::serializer().from_json(code, unrecognized_values=policy(value.keep_unrecognized)) {
+      match @goldens.EnumA::serializer().from_json_code(code, unrecognized_values=policy(value.keep_unrecognized)) {
         Ok(parsed) => if parsed == @goldens.EnumA::A { None } else { Some("enum_a_from_json") }
         Err(_) => Some("enum_a_from_json")
       }
@@ -570,7 +570,7 @@ fn verify_assertion(assertion : @goldens.Assertion) -> String? {
           Ok(v) => v
           Err(_) => return Some("enum_b_from_json")
         }
-      match @goldens.EnumB::serializer().from_json(code, unrecognized_values=policy(value.keep_unrecognized)) {
+      match @goldens.EnumB::serializer().from_json_code(code, unrecognized_values=policy(value.keep_unrecognized)) {
         Ok(parsed) => if parsed == @goldens.EnumB::B(value.expected) { None } else { Some("enum_b_from_json") }
         Err(_) => Some("enum_b_from_json")
       }

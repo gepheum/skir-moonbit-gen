@@ -2,7 +2,7 @@ pub struct Serializer[T] {
   priv adapter : TypeAdapter[T]
 }
 
-pub fn[T] Serializer::to_dense_json(self : Serializer[T], input : T) -> String {
+pub fn[T] Serializer::to_dense_json_code(self : Serializer[T], input : T) -> String {
   let builder = StringBuilder::new()
   (self.adapter.to_dense_json)(input, builder)
   builder.to_string()
@@ -14,6 +14,14 @@ pub fn[T] Serializer::to_readable_json(self : Serializer[T], input : T) -> Json 
 
 pub fn[T] Serializer::from_json(
   self : Serializer[T],
+  json : Json,
+  unrecognized_values~ : UnrecognizedValues = UnrecognizedValues::Drop
+) -> Result[T, String] {
+  (self.adapter.from_json)(json, unrecognized_values)
+}
+
+pub fn[T] Serializer::from_json_code(
+  self : Serializer[T],
   code : String,
   unrecognized_values~ : UnrecognizedValues = UnrecognizedValues::Drop
 ) -> Result[T, String] {
@@ -21,9 +29,9 @@ pub fn[T] Serializer::from_json(
     try {
       @json.parse(code)
     } catch {
-      _ => return Err("invalid JSON")
+      e => return Err("invalid JSON: " + e.to_string())
     }
-  (self.adapter.from_json)(root, unrecognized_values)
+  self.from_json(root, unrecognized_values=unrecognized_values)
 }
 
 pub fn[T] Serializer::to_bytes(self : Serializer[T], input : T) -> Array[Int] {

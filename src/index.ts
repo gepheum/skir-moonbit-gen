@@ -1,11 +1,8 @@
 // TODO: add comments to Serializer
-// TODO: 
+// TODO: make TypeDescriptor read-only
 // TODO: generate doc for client...
 // TODO: add unit tests
-// TODO: make Serializer.adapter private?
 // TODO: organize client lib...
-// TODO: make sure UnrecognizedFields and UnrecognizedVariant are generic
-// TODO: figure out what symbols to actually export
 // TODO: make them comparable, renderable, etc.
 
 import {
@@ -141,9 +138,7 @@ class MoonbitSourceFileGenerator {
       JSON.stringify(constant.valueAsDenseJson),
     );
     out.push(`pub let ${moonbitName} : ${moonbitType} =\n`);
-    out.push(
-      `  match ${serializerExpr}.from_json(${jsonLiteral}) {\n`,
-    );
+    out.push(`  match ${serializerExpr}.from_json_code(${jsonLiteral}) {\n`);
     out.push("    Ok(value) => value\n");
     out.push("    Err(_) => panic()\n");
     out.push("  }\n\n");
