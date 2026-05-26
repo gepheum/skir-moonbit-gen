@@ -32,6 +32,8 @@ jobs:
   publish-npm:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +44,6 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+      - name: Verify npm authentication
+        run: npm whoami
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
