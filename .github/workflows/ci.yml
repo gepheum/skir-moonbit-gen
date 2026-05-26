@@ -36,5 +36,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Update MoonBit registry
+        run: cd e2e-tests && moon update
+
       - name: Test
         run: npm test

@@ -26,6 +26,7 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+      - run: cd e2e-tests && moon update
       - run: npm test
 
   publish-npm:
