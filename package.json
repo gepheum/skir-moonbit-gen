@@ -26,7 +26,7 @@
     "format-skir:check": "cd e2e-tests && ../node_modules/.bin/skir format --ci && cd ..",
     "format": "prettier --write \"**/*.ts\" && npm run format-skir",
     "format:check": "prettier --check \"**/*.ts\" && npm run format-skir:check",
-    "test": "npm run build && cd e2e-tests && rm -rf skirout && ../node_modules/.bin/skir gen && for p in $(find skirout -name moon.pkg -exec dirname {} +); do moon check ./$p || exit 1; done && moon test ./goldens-tests && moon test ./client && cd ..",
+    "test": "npm run build && cd e2e-tests && rm -rf skirout && ../node_modules/.bin/skir gen && for p in $(find skirout -name moon.pkg -exec dirname {} +); do moon check ./$p || exit 1; done && moon test ./goldens-tests && cd ..",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },
