@@ -34,18 +34,18 @@ Most code snippets are quoted from [moonbit-example/src/snippets.mbt](https://gi
 Skir generates a plain MoonBit struct for each struct in the .skir schema.
 
 ```moonbit
-let john = @skirout_user_skir.User::new(
+let john = @skirout_user.User::new(
 	user_id=42,
 	name="John Doe",
 	quote="Coffee is just a socially acceptable form of rage.",
 	pets=@client.ImmutVector::from_array([
-		@skirout_user_skir.User_Pet::new(
+		@skirout_user.User_Pet::new(
 			name="Dumbo",
 			height_in_meters=1.0,
 			picture="🐘",
 		),
 	]),
-	subscription_status=@skirout_user_skir.SubscriptionStatus::free(),
+	subscription_status=@skirout_user.SubscriptionStatus::free(),
 )
 
 println(john.name)
@@ -61,7 +61,7 @@ println(evil_john.name)
 println(evil_john.user_id.to_string())
 // 42
 
-let jane = @skirout_user_skir.User::default().copy(
+let jane = @skirout_user.User::default().copy(
 	user_id=@client.KeepOrSet::Set(43),
 	name=@client.KeepOrSet::Set("Jane Doe"),
 )
@@ -75,15 +75,15 @@ println(jane.quote)
 ### Enum types
 
 ```moonbit
-let trial_payload = @skirout_user_skir.SubscriptionStatus_Trial::new(
+let trial_payload = @skirout_user.SubscriptionStatus_Trial::new(
 	start_time=@client.Timestamp::from_unix_millis(1744974198000L),
 )
 
 let some_statuses = [
-	@skirout_user_skir.SubscriptionStatus::unknown(),
-	@skirout_user_skir.SubscriptionStatus::free(),
-	@skirout_user_skir.SubscriptionStatus::premium(),
-	@skirout_user_skir.SubscriptionStatus::trial(trial_payload),
+	@skirout_user.SubscriptionStatus::unknown(),
+	@skirout_user.SubscriptionStatus::free(),
+	@skirout_user.SubscriptionStatus::premium(),
+	@skirout_user.SubscriptionStatus::trial(trial_payload),
 ]
 
 println(some_statuses.length().to_string())
@@ -94,7 +94,7 @@ println(some_statuses.length().to_string())
 
 ```moonbit
 let subscription_info_text = fn(
-	status : @skirout_user_skir.SubscriptionStatus,
+	status : @skirout_user.SubscriptionStatus,
 ) {
 	match status {
 		Unknown(_) => "Unknown subscription status"
@@ -108,7 +108,7 @@ println(subscription_info_text(john.subscription_status))
 // Free user
 
 println(
-	subscription_info_text(@skirout_user_skir.SubscriptionStatus::unknown()),
+	subscription_info_text(@skirout_user.SubscriptionStatus::unknown()),
 )
 // Unknown subscription status
 ```
@@ -118,7 +118,7 @@ println(
 Every generated struct and enum has a static serializer.
 
 ```moonbit
-let user_serializer = @skirout_user_skir.User::serializer()
+let user_serializer = @skirout_user.User::serializer()
 
 let john_dense_json = user_serializer.to_dense_json_code(john)
 println(john_dense_json)
@@ -207,7 +207,7 @@ println(
 ### Constants
 
 ```moonbit
-let tarzan = @skirout_user_skir.tarzan_const
+let tarzan = @skirout_user.tarzan_const
 println(tarzan.name)
 // Tarzan
 println(user_serializer.to_readable_json(tarzan).stringify(indent=2))
@@ -220,8 +220,8 @@ println(user_serializer.to_readable_json(tarzan).stringify(indent=2))
 ### Keyed arrays
 
 ```moonbit
-let user_registry = @skirout_user_skir.UserRegistry::new(
-	users=@skirout_user_skir.User_byUserId::from_array([john, jane, evil_john]),
+let user_registry = @skirout_user.UserRegistry::new(
+	users=@skirout_user.User_byUserId::from_array([john, jane, evil_john]),
 )
 
 let found = user_registry.users.find_by_user_id(43)
