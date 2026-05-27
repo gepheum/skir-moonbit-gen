@@ -29,15 +29,6 @@ For more information, see this MoonBit project [example](https://github.com/geph
 The examples below are for the code generated from [this](https://github.com/gepheum/skir-moonbit-example/blob/main/skir-src/user.skir) .skir file.
 Most code snippets are quoted from [moonbit-example/src/snippets.mbt](https://github.com/gepheum/skir-moonbit-example/blob/main/src/snippets.mbt).
 
-### Referring to generated symbols
-
-```moonbit
-// Import generated symbols from the MoonBit package generated from "user.skir".
-let _user_default = @skirout_user_skir.User::default()
-let _status = @skirout_user_skir.SubscriptionStatus::free()
-let _tarzan = @skirout_user_skir.tarzan_const
-```
-
 ### Struct types
 
 Skir generates a plain MoonBit struct for each struct in the .skir schema.
